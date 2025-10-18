@@ -22,6 +22,19 @@ public class NetworkSync : NetworkBehaviour
     public bool _IsServer;
     public bool _IsClient;
 
+    public override void OnNetworkSpawn()
+    {
+        base.OnNetworkSpawn();
+        
+        if (!IsOwner) // Only non-owners should use prediction
+        {
+            Position.OnValueChanged += (oldValue, newValue) =>
+            {
+                OnNetworkPositionUpdate(newValue);
+            };
+        }
+    }
+
     void Update()
     {
         _IsOwner = IsOwner;
@@ -37,6 +50,16 @@ public class NetworkSync : NetworkBehaviour
         {
             transform.position = Position.Value;
             transform.rotation = Rotation.Value;
+        }
+    }
+
+    // When client receives position update from server
+    void OnNetworkPositionUpdate(Vector3 serverPos)
+    {
+        EchoPositionPredictor predictor = GetComponent<EchoPositionPredictor>();
+        if (predictor != null)
+        {
+            predictor.OnServerPositionChanged(serverPos);  // <-- Call this
         }
     }
 }
