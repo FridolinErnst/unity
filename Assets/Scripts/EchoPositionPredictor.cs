@@ -5,13 +5,11 @@ using UnityEngine;
 public class EchoPositionPredictor : MonoBehaviour
 {
     [Header("Prediction Settings")]
-    [SerializeField] private float predictionTime = 4.5f; // Predict 4.5 seconds ahead (adjust as needed)
+    [SerializeField] private float predictionTime = 0.1f;
 
     private Vector3 previousPosition;
     private Vector3 predictedPosition;
     private float lastUpdateTime;
-
-    private bool hasReceivedUpdate = false;
 
     void Start()
     {
@@ -19,13 +17,9 @@ public class EchoPositionPredictor : MonoBehaviour
         lastUpdateTime = Time.time;
     }
     
-    void LateUpdate()
+    void Update()
     {
-        if (hasReceivedUpdate)
-        {
-            transform.position = predictedPosition;
-            hasReceivedUpdate = false;
-        }
+        transform.position = predictedPosition;
     }
 
     public void OnServerPositionChanged(Vector3 newPosition)
@@ -34,7 +28,6 @@ public class EchoPositionPredictor : MonoBehaviour
 
         lastUpdateTime = Time.time;
         previousPosition = newPosition;
-        hasReceivedUpdate = true;
     }
 
     private Vector3 PredictLinearForwardPosition(Vector3 newPosition, float timeDelta)

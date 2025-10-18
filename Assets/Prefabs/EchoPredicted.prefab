@@ -14,7 +14,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4523984833277238634, guid: 43471389ea29db34191a3ea2cccad071, type: 3}
       propertyPath: GlobalObjectIdHash
-      value: 1248603784
+      value: 1387600381
       objectReference: {fileID: 0}
     - target: {fileID: 5352193066849666118, guid: 43471389ea29db34191a3ea2cccad071, type: 3}
       propertyPath: m_LocalPosition.x
@@ -85,3 +85,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0854e4d8c2ec144e88788b0ea47c56a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  predictionTime: 0.1

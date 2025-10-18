@@ -59,7 +59,7 @@ public class NetworkSync : NetworkBehaviour
         EchoPositionPredictor predictor = GetComponent<EchoPositionPredictor>();
         if (predictor != null)
         {
-            predictor.OnServerPositionChanged(serverPos);  // <-- Call this
+            predictor.OnServerPositionChanged(serverPos);
         }
     }
 }
