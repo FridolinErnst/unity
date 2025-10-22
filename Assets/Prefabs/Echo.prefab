@@ -67,6 +67,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 97804254836313e4f89bae26246fe10c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  _IsOwner: 0
+  _IsServer: 0
+  _IsClient: 0
+  isPlayerCar: 0
+  maxAllowedSpeed: 200
 --- !u!1 &4865720231749775047
 GameObject:
   m_ObjectHideFlags: 0

@@ -19,6 +19,12 @@ public class EchoPositionPredictor : MonoBehaviour
     
     void Update()
     {
+        if (float.IsNaN(predictedPosition.x) || float.IsNaN(predictedPosition.y) || float.IsNaN(predictedPosition.z) ||
+            float.IsInfinity(predictedPosition.x) || float.IsInfinity(predictedPosition.y) || float.IsInfinity(predictedPosition.z))
+        {
+            return; 
+        }
+        
         transform.position = predictedPosition;
     }
 

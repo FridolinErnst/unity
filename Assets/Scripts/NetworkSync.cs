@@ -21,6 +21,10 @@ public class NetworkSync : NetworkBehaviour
     public bool _IsOwner;
     public bool _IsServer;
     public bool _IsClient;
+    
+    public bool isPlayerCar = true; // Set to false for Echos
+    private Vector3 lastPosition = Vector3.zero;
+    public float maxAllowedSpeed = 200f;
 
     public override void OnNetworkSpawn()
     {
@@ -43,6 +47,12 @@ public class NetworkSync : NetworkBehaviour
 
         if (IsOwner)
         {
+            // Owner sends position to server for validation
+            if (isPlayerCar)
+            {
+                ValidateSpeedServerRpc(transform.position);
+            }
+            
             Position.Value = transform.position;
             Rotation.Value = transform.rotation;
         }
@@ -51,6 +61,33 @@ public class NetworkSync : NetworkBehaviour
             transform.position = Position.Value;
             transform.rotation = Rotation.Value;
         }
+    }
+
+    [Rpc(SendTo.Server)]
+    private void ValidateSpeedServerRpc(Vector3 clientPosition)
+    {
+        // Server-side anti-cheat: Only validate player cars
+        float distance = Vector3.Distance(clientPosition, lastPosition);
+        float speed = distance / Time.deltaTime;
+        
+        if (speed > maxAllowedSpeed)
+        {
+            Debug.Log($"Anti-Cheat: Player {OwnerClientId} driving too fast! Speed: {speed}. Resetting position.");
+            // Reset the player to the last valid position via ClientRpc
+            ResetPositionClientRpc(lastPosition);
+        }
+        else
+        {
+            lastPosition = clientPosition;
+        }
+    }
+
+    [Rpc(SendTo.Owner)]
+    private void ResetPositionClientRpc(Vector3 validPosition)
+    {
+        // Reset player's position on their client
+        transform.position = validPosition;
+        Position.Value = validPosition;
     }
 
     // When client receives position update from server

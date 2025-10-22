@@ -470,6 +470,8 @@ MonoBehaviour:
   _IsOwner: 0
   _IsServer: 0
   _IsClient: 0
+  isPlayerCar: 1
+  maxAllowedSpeed: 200
 --- !u!114 &6032489142372950593
 MonoBehaviour:
   m_ObjectHideFlags: 0

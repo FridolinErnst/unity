@@ -8,6 +8,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: -5398154835595862503, guid: 43471389ea29db34191a3ea2cccad071, type: 3}
+      propertyPath: isPlayerCar
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 2391240857507717221, guid: 43471389ea29db34191a3ea2cccad071, type: 3}
       propertyPath: m_Name
       value: EchoPredicted
@@ -85,4 +89,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0854e4d8c2ec144e88788b0ea47c56a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  predictionTime: 0.1
+  predictionTime: 0.3

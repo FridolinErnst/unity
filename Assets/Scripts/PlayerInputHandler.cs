@@ -44,6 +44,8 @@ public class PlayerInputHandler : NetworkBehaviour
 
     public bool debug = false;
 
+    public float maxAllowedSpeed = 60f;
+
     void Start()
     {
         Cursor.lockState = CursorLockMode.Locked;
