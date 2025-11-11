@@ -12,6 +12,10 @@ PrefabInstance:
       propertyPath: isPlayerCar
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -5398154835595862503, guid: 43471389ea29db34191a3ea2cccad071, type: 3}
+      propertyPath: maxAllowedSpeed
+      value: 45
+      objectReference: {fileID: 0}
     - target: {fileID: 2391240857507717221, guid: 43471389ea29db34191a3ea2cccad071, type: 3}
       propertyPath: m_Name
       value: EchoPredicted

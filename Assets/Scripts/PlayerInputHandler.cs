@@ -7,11 +7,6 @@ using UnityEngine;
 using Unity.Netcode;
 
 
-[CreateAssetMenu(fileName = "Controller", menuName = "ScriptableObjects/Controller", order = 1)]
-public class Controller : ScriptableObject
-{
-    public string prefix = "default";
-}
 public class GameConstants
 {
     public const string k_AxisNameHorizontal = ".Horizontal";

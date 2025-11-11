@@ -1,27 +1,29 @@
 //using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.ComponentModel;
-using Unity.VisualScripting;
-using UnityEngine;
-using Unity.Netcode;
 
-[System.Serializable]
+using System;
+using System.Collections.Generic;
+using Unity.Netcode;
+using UnityEngine;
+using Random = UnityEngine.Random;
+
+[Serializable]
 public struct AIInputs
 {
     public Vector2 movement;
     public float breaking;
 }
+
 public class AIHandler : NetworkBehaviour
 {
-    public List<CarController> characters = new List<CarController>();
+    public List<CarController> characters = new();
 
-    private AIInputs m_AIInputs = new AIInputs();
-    private Inputs m_Inputs = new Inputs();
+    private AIInputs m_AIInputs;
+    private Inputs m_Inputs;
 
     private bool _IsOwner;
     private bool _IsServer;
     private bool _IsClient;
+
 
     private void Update()
     {
@@ -29,10 +31,7 @@ public class AIHandler : NetworkBehaviour
         _IsServer = IsServer;
         _IsClient = IsClient;
 
-        if (!IsOwner)
-        {
-            return;
-        }
+        if (!IsServer) return;
 
         // get old controlls
 
@@ -42,21 +41,20 @@ public class AIHandler : NetworkBehaviour
         m_AIInputs.movement.y += Random.Range(-0.2f, 0.5f);
         m_AIInputs.movement.y = Mathf.Clamp(m_AIInputs.movement.y, -0f, +3f);
         m_AIInputs.breaking += Random.Range(-0.5f, 0.5f);
-        m_AIInputs.breaking = Mathf.Clamp(m_AIInputs.breaking, -3f, +1f - (m_Inputs.break_time / 10f));
+        m_AIInputs.breaking = Mathf.Clamp(m_AIInputs.breaking, -3f, +1f - m_Inputs.break_time / 10f);
 
         // force controlls to be 100%
         m_Inputs.movement.x = Mathf.Round(m_AIInputs.movement.x);
         m_Inputs.movement.y = Mathf.Round(m_AIInputs.movement.y);
 
         // update character Controllers
-        foreach (CarController character in characters)
+        foreach (var character in characters)
         {
             var distance = character.transform.position.magnitude;
             var rotation = Vector3.zero;
             if (character.transform.position != Vector3.zero)
-            {
-                rotation = Quaternion.Inverse(Quaternion.LookRotation(character.transform.position.normalized)) * (character.transform.forward);
-            }
+                rotation = Quaternion.Inverse(Quaternion.LookRotation(character.transform.position.normalized)) *
+                           character.transform.forward;
 
             // no breaking when standing still
             if (character.m_speed == 0)
@@ -80,13 +78,9 @@ public class AIHandler : NetworkBehaviour
             if (distance > 300 && rotation.z > 0.0f)
             {
                 if (rotation.x >= 0.0f)
-                {
                     m_Inputs.movement.x = 1.0f;
-                }
                 else
-                {
                     m_Inputs.movement.x = -1.0f;
-                }
             }
 
             character.ApplyInputs(m_Inputs);

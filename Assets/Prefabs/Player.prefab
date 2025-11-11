@@ -560,6 +560,7 @@ GameObject:
   - component: {fileID: 5245486525737210416}
   - component: {fileID: 6249764841232709915}
   - component: {fileID: -7274678719599832589}
+  - component: {fileID: -4015058646572626142}
   - component: {fileID: 293356595800408286}
   - component: {fileID: 6480919009910986635}
   - component: {fileID: 6967739498101334316}
@@ -627,6 +628,8 @@ MonoBehaviour:
   _IsOwner: 0
   _IsServer: 0
   _IsClient: 0
+  isPlayerCar: 1
+  maxAllowedSpeed: 200
 --- !u!114 &6249764841232709915
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -634,7 +637,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6421001238606955872}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b010115fad969164cb3f6a4d9abf5f99, type: 3}
   m_Name: 
@@ -653,6 +656,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   echoPrefab: {fileID: 7868567463040650468, guid: 0df6f86de7cd6d046b14b0873d5d07ea, type: 3}
+--- !u!114 &-4015058646572626142
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6421001238606955872}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b010115fad969164cb3f6a4d9abf5f99, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  echoPrefab: {fileID: 2391240857507717221, guid: 4a7dd264606632740a8377d4138ed673, type: 3}
 --- !u!143 &293356595800408286
 CharacterController:
   m_ObjectHideFlags: 0
@@ -695,10 +711,11 @@ MonoBehaviour:
   iriggerAxisThreshold: 0.4
   invertYAxis: 0
   invertXAxis: 0
-  controller: {fileID: 11400000, guid: c1c6310ac3eca3746b42734e221c3ed2, type: 2}
+  controller: {fileID: 11400000, guid: 94761b02336010c418f98ea3a44f14eb, type: 2}
   characters:
   - {fileID: 6967739498101334316}
   debug: 0
+  maxAllowedSpeed: 60
 --- !u!114 &6967739498101334316
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -858,7 +875,7 @@ Camera:
     m_Bits: 4294967295
   m_RenderingPath: -1
   m_TargetTexture: {fileID: 0}
-  m_TargetDisplay: 1
+  m_TargetDisplay: 0
   m_TargetEye: 3
   m_HDR: 1
   m_AllowMSAA: 1

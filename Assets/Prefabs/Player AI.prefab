@@ -409,6 +409,8 @@ GameObject:
   - component: {fileID: 293356595800408286}
   - component: {fileID: -4311351212514496066}
   - component: {fileID: 6967739498101334316}
+  - component: {fileID: -5069378809613084099}
+  - component: {fileID: 5500825471576021033}
   m_Layer: 0
   m_Name: Player AI
   m_TagString: Untagged
@@ -609,6 +611,38 @@ MonoBehaviour:
   m_turning: 0
   drag: 1
   breakStrenght: 25
+--- !u!114 &-5069378809613084099
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6421001238606955872}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 125054ee615f2c94d93bffadd1b07422, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  tickRate: 60
+  maxSpeed: 45
+  maxTurnRateDeg: 180
+  reconcileTime: 0.15
+  snapIfErrorMeters: 3
+  timeCtrl: {fileID: 6547131365862897028, guid: 748b9158a9bbf2b468a524e446361551, type: 3}
+  historySize: 20
+--- !u!114 &5500825471576021033
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6421001238606955872}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c0e8bfbc16da32c41a418fd11f78379b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  echoPrefab: {fileID: 2391240857507717221, guid: 4a7dd264606632740a8377d4138ed673, type: 3}
 --- !u!1 &6769992370949512929
 GameObject:
   m_ObjectHideFlags: 0
@@ -683,7 +717,7 @@ Camera:
     m_Bits: 4294967295
   m_RenderingPath: -1
   m_TargetTexture: {fileID: 0}
-  m_TargetDisplay: 1
+  m_TargetDisplay: 0
   m_TargetEye: 3
   m_HDR: 1
   m_AllowMSAA: 1

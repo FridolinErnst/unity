@@ -24,7 +24,7 @@ public class NetworkSync : NetworkBehaviour
     
     public bool isPlayerCar = true; // Set to false for Echos
     private Vector3 lastPosition = Vector3.zero;
-    public float maxAllowedSpeed = 200f;
+    public float maxAllowedSpeed = 45f;
 
     public override void OnNetworkSpawn()
     {

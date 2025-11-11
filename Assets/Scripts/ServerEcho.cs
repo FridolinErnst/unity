@@ -1,52 +1,52 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
+using Kart;
 using Unity.Netcode;
 using UnityEngine;
 
 public class ServerEcho : NetworkBehaviour
 {
     public GameObject echoPrefab;
-    private GameObject echoInstance = null;
+    private GameObject echoInstance;
+    private KartController kartController;
     private bool should_spawn = true;
 
-    public override void OnNetworkSpawn()
-    {
-        should_spawn = true;
-    }
-
-    public override void OnNetworkDespawn()
-    {
-        if (echoInstance != null && echoInstance.GetComponent<NetworkObject>().IsOwner)
-        {
-            Destroy(echoInstance);
-        }
-    }
-
-    void Update()
+    private void Update()
     {
         if (IsOwner && should_spawn)
         {
             should_spawn = false;
             InstanceSpawnRpc();
         }
+
         if (IsServer && echoInstance != null)
         {
-            echoInstance.transform.position = this.transform.position;
-            echoInstance.transform.rotation = this.transform.rotation;
-        }
-    }
-    void LateUpdate()
-    {
-        if (IsServer && echoInstance != null)
-        {
-            echoInstance.transform.position = this.transform.position;
-            echoInstance.transform.rotation = this.transform.rotation;
+            echoInstance.transform.position = transform.position;
+            echoInstance.transform.rotation = transform.rotation;
         }
     }
 
+    private void LateUpdate()
+    {
+        if (IsServer && echoInstance != null)
+        {
+            echoInstance.transform.position = transform.position;
+            echoInstance.transform.rotation = transform.rotation;
+        }
+    }
+
+    public override void OnNetworkSpawn()
+    {
+        should_spawn = true;
+        if (!IsServer) return;
+        kartController = GetComponent<KartController>();
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        if (echoInstance != null && echoInstance.GetComponent<NetworkObject>().IsOwner) Destroy(echoInstance);
+    }
+
     [Rpc(SendTo.Server)]
-    void InstanceSpawnRpc()
+    private void InstanceSpawnRpc()
     {
         if (IsServer)
         {
