@@ -1,5 +1,6 @@
 //using System;
 
+using System;
 using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
@@ -7,9 +8,16 @@ using Random = UnityEngine.Random;
 
 namespace Kart
 {
-    public class AIHandlerEx4 : NetworkBehaviour
+    [Serializable]
+    public struct AIInputs
     {
-        public List<CarControllerEx4> characters = new();
+        public Vector2 movement;
+        public float breaking;
+    }
+
+    public class AIHandlerEx5 : NetworkBehaviour
+    {
+        public List<CarControllerEx5> characters = new();
 
         private AIInputs m_AIInputs;
         private Inputs m_Inputs;
@@ -23,6 +31,8 @@ namespace Kart
 
         public override void OnNetworkSpawn()
         {
+            Debug.Log($"[{NetworkManager.LocalClientId}] Car spawned here. IsOwner={IsOwner}, IsServer={IsServer}");
+
             if (!IsServer) return;
             //NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
 
@@ -155,24 +165,37 @@ namespace Kart
 
         private void LateUpdate()
         {
-            if (!IsServer) return;
+            if (Globals.networkingRoleSuperset != NetworkingRole.IsShard) return;
 
+            SendAiCarStateToServerRpc(transform.position, transform.rotation);
             foreach (var clientId in clientsInZone)
             {
-                // Broadcast state only to clients in the zone
+                /* Broadcast state only to clients in the zone
                 Debug.Log("Broadcasting to client " + clientId);
                 BroadcastStateClientRpc(transform.position, transform.rotation,
                     new ClientRpcParams
                     {
                         Send = new ClientRpcSendParams { TargetClientIds = new[] { clientId } }
-                    });
+                    }); */
             }
         }
 
-        [ClientRpc]
-        private void BroadcastStateClientRpc(Vector3 position, Quaternion rotation, ClientRpcParams clientRpcParams)
+        [Rpc(SendTo.Server, Delivery = RpcDelivery.Unreliable)]
+        private void SendAiCarStateToServerRpc(Vector3 position, Quaternion rotation, RpcParams p = default)
+        {
+            Debug.Log("we send the resulting ai car state to server");
+
+            var senderId = p.Receive.SenderClientId;
+
+            foreach (var clientId in ProxyScript.Instance.GetAllOtherClients(senderId))
+                BroadcastStateClientRpc(position, rotation, RpcTarget.Single(clientId, RpcTargetUse.Temp));
+        }
+
+        [Rpc(SendTo.SpecifiedInParams, Delivery = RpcDelivery.Unreliable)]
+        private void BroadcastStateClientRpc(Vector3 position, Quaternion rotation, RpcParams p = default)
         {
             if (IsServer) return; // No need for server to update
+            Debug.Log("received ai car state from server");
             transform.position = position;
             transform.rotation = rotation;
         }

@@ -2,28 +2,7 @@
 // how can we stop the player from teleporting? right now if you spam Q it still teleports. do we need to check multilpe steps?
 // i dont know why
 
-
-//TODO
-// zeit syncen
-// mach handle extrapolation mal nur auf dem echo bzw client cube und nur client side
-// dann schickt der server an clients alles 100 ms in der vergangenheit
-// bei time stemps wird gecheckt fuer reconciliation (schauen ob hier zeit oder ticks)
-// wenn laenger als 100 ms keine pakete kommen, dann extrapolieren 0.25s
-/*change time stuff everywhere to:
-// Using long for Unix time in ms
-public struct StatePayload : INetworkSerializable
-{
-    public int tick;
-    public Vector3 position;
-    public Quaternion rotation;
-    public ulong networkObjectId;
-    public long timeStamp; // <--- Use long/int64 for timestamps
-}
-
-// Setting timestamp
-statePayload.timeStamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-
- */
+//TODO make jitter better
 
 using System.Collections;
 using System.Collections.Generic;
@@ -34,56 +13,7 @@ using Debug = UnityEngine.Debug;
 
 namespace Kart
 {
-    public struct InputPayload : INetworkSerializable
-    {
-        public int tick;
-        public Vector2 movement;
-        public Vector2 look;
-        public float boost_time;
-        public float break_time;
-        public double timeStamp;
-        public ulong networkObjectId;
-        public Vector3 position;
-
-
-        public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
-        {
-            serializer.SerializeValue(ref tick);
-            serializer.SerializeValue(ref movement);
-            serializer.SerializeValue(ref look);
-            serializer.SerializeValue(ref boost_time);
-            serializer.SerializeValue(ref break_time);
-            serializer.SerializeValue(ref timeStamp);
-            serializer.SerializeValue(ref networkObjectId);
-            serializer.SerializeValue(ref position);
-        }
-    }
-
-    public struct StatePayload : INetworkSerializable
-    {
-        public int tick;
-        public Vector3 position;
-        public Quaternion rotation;
-        public float speed;
-        public float turning;
-        public ulong networkObjectId;
-        public double timeStamp;
-
-
-        public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
-        {
-            serializer.SerializeValue(ref tick);
-            serializer.SerializeValue(ref position);
-            serializer.SerializeValue(ref rotation);
-            serializer.SerializeValue(ref speed);
-            serializer.SerializeValue(ref turning);
-            serializer.SerializeValue(ref networkObjectId);
-            serializer.SerializeValue(ref timeStamp);
-        }
-    }
-
-
-    public class KartController : NetworkBehaviour
+    public class KartControllerEx5 : NetworkBehaviour
     {
         public const float k_serverTickRate = 60f;
         private const int k_bufferSize = 1024;
@@ -97,14 +27,14 @@ namespace Kart
         private ServerEchoEx4 serverEchoEx4;
         [SerializeField] private GameObject serverCube;
         [SerializeField] private GameObject DummyPlayer;
-        private CarControllerEx4 DummyPlayerCarController;
+        private CarControllerEx5 DummyPlayerCarController;
         [SerializeField] private GameObject ServerEchoPrediction;
         private readonly List<StatePayload> serverEchoPredictionBuffer = new();
         private int lastEchoPredictionBufferTick = -1;
 
         [Header("Netcode")] private readonly float reconciliationThreshold = 13.5f;
-        private AIHandlerEx4 aiHandler;
-        private CarControllerEx4 carController;
+        private AIHandlerEx5 aiHandler;
+        private CarControllerEx5 carController;
         private CircularBuffer<InputPayload> clientInputBuffer;
         private ClientNetworkTransform clientNetworkTransform;
 
@@ -120,7 +50,7 @@ namespace Kart
         private CountdownTimer extrapolationTimer;
 
         // get references to movement and input
-        private PlayerInputHandlerEx4 inputHandler;
+        private PlayerInputHandlerEx5 inputHandler;
 
         private StatePayload lastProcessedState;
         private int lastProcessedTickForClient = -1;
@@ -141,16 +71,16 @@ namespace Kart
 
         private void Awake()
         {
-            DummyPlayerCarController = DummyPlayer.GetComponent<CarControllerEx4>();
+            DummyPlayerCarController = DummyPlayer.GetComponent<CarControllerEx5>();
             networkTimer = new NetworkTimer(k_serverTickRate);
             clientStateBuffer = new CircularBuffer<StatePayload>(k_bufferSize);
             clientInputBuffer = new CircularBuffer<InputPayload>(k_bufferSize);
             serverStateBuffer = new CircularBuffer<StatePayload>(k_bufferSize);
             serverInputQueue = new Queue<InputPayload>();
             interpolationBuffer = new List<StatePayload>();
-            inputHandler = GetComponent<PlayerInputHandlerEx4>();
-            carController = GetComponent<CarControllerEx4>();
-            aiHandler = GetComponent<AIHandlerEx4>();
+            inputHandler = GetComponent<PlayerInputHandlerEx5>();
+            carController = GetComponent<CarControllerEx5>();
+            aiHandler = GetComponent<AIHandlerEx5>();
             networkTimer = new NetworkTimer(k_serverTickRate);
             reconciliationTimer = new CountdownTimer(reconciliationCooldownTime);
             networkTimeController = GetComponent<NetworkTimeController>();
@@ -179,7 +109,9 @@ namespace Kart
             reconciliationTimer.Tick(Time.deltaTime);
             extrapolationTimer.Tick(Time.deltaTime);
             //Extrapolate();
-            if (!IsOwner && !IsServer)
+
+            // this manages local cars that are in the past
+            if (!IsOwner && Globals.networkingRoleSuperset == NetworkingRole.IsClient)
             {
                 // handle remote player position and transforms based on estimated server time - interpolationDelay 100 ms
                 if (interpolationBuffer.Count < 2)
@@ -232,7 +164,15 @@ namespace Kart
 
         private void HandleServerTick()
         {
-            if (!IsServer) return;
+            Debug.Log("inside handleservertick");
+            if (Globals.networkingRoleSuperset != NetworkingRole.IsShard) return;
+            Debug.Log("inside handleservertick and we are shard");
+
+            //only run if the shard is responsible for this client
+            if (Globals.networkingRole != ProxyScript.Instance.GetCorrespondingShardRole(OwnerClientId))
+                return;
+            Debug.Log("inside handleservertick and we are shard responsible for this client");
+
             var bufferIndex = -1;
             InputPayload inputPayload = default;
             while (serverInputQueue.Count > 0)
@@ -242,29 +182,65 @@ namespace Kart
                 bufferIndex = inputPayload.tick % k_bufferSize;
 
                 var statePayload = ProcessMovement(inputPayload, networkTimer.MinTimeBetweenTicks);
+                Debug.Log("processing movements");
 
-                if (IsOwner)
-                {
-                    clientStateBuffer.Add(statePayload, bufferIndex);
-                    clientCube.transform.position = statePayload.position;
-                }
 
                 serverCube.transform.position = statePayload.position;
                 serverStateBuffer.Add(statePayload, bufferIndex);
             }
 
+            Debug.Log("we should have processed inputs");
+
             if (bufferIndex == -1) return;
 
-            SendToClientRpc(serverStateBuffer.Get(bufferIndex));
+            SendServerStateBufferToServerRpc(serverStateBuffer.Get(bufferIndex));
             serverEchoPredictionBuffer.Add(serverStateBuffer.Get(bufferIndex));
-            AddToInterpolationBufferClientRpc(serverStateBuffer.Get(bufferIndex));
-            //HandleExtrapolation(serverStateBuffer.Get(bufferIndex), CalculateLatencyInMillis(inputPayload),
-            //  inputPayload);
         }
 
+        [Rpc(SendTo.Server, Delivery = RpcDelivery.Unreliable)]
+        private void SendServerStateBufferToServerRpc(StatePayload statePayload, RpcParams p = default)
+        {
+            Debug.Log("we send the resulting state to server");
 
-        [ClientRpc(Delivery = RpcDelivery.Unreliable)]
-        private void AddToInterpolationBufferClientRpc(StatePayload statePayload)
+            var senderId = p.Receive.SenderClientId;
+            var clientId = ProxyScript.Instance.GetCorrespondingClientId(senderId);
+            SendServerStateBufferToResponsibleClientRpc(statePayload, RpcTarget.Single(clientId, RpcTargetUse.Temp));
+            if (ProxyScript.Instance.ClientIdToRole.ContainsKey(clientId))
+            {
+                var otherClientId = ProxyScript.Instance.GetOtherClientId(clientId);
+                SendServerStateBufferToOtherClientRpc(statePayload, RpcTarget.Single(otherClientId, RpcTargetUse.Temp));
+            }
+
+            if (ProxyScript.Instance.GetOtherShardId(senderId) != 1000)
+            {
+                var otherShardId = ProxyScript.Instance.GetOtherShardId(senderId);
+                SyncCarWithOtherShardClientRpc(statePayload, RpcTarget.Single(otherShardId, RpcTargetUse.Temp));
+            }
+        }
+
+        [Rpc(SendTo.SpecifiedInParams, Delivery = RpcDelivery.Unreliable)]
+        private void SyncCarWithOtherShardClientRpc(StatePayload statePayload,
+            RpcParams rpcParams = default)
+        {
+            transform.position = statePayload.position;
+            transform.rotation = statePayload.rotation;
+        }
+
+        [Rpc(SendTo.SpecifiedInParams, Delivery = RpcDelivery.Unreliable)]
+        private void SendServerStateBufferToResponsibleClientRpc(StatePayload statePayload,
+            RpcParams rpcParams = default)
+        {
+            if (statePayload.tick >= lastEchoPredictionBufferTick)
+            {
+                serverEchoPredictionBuffer.Add(statePayload);
+                lastEchoPredictionBufferTick = statePayload.tick;
+            }
+
+            lastServerState = statePayload;
+        }
+
+        [Rpc(SendTo.SpecifiedInParams, Delivery = RpcDelivery.Unreliable)]
+        private void SendServerStateBufferToOtherClientRpc(StatePayload statePayload, RpcParams rpcParams = default)
         {
             if (IsOwner) return;
             if (lastInterpolationBufferTick < statePayload.tick)
@@ -273,7 +249,6 @@ namespace Kart
                 lastInterpolationBufferTick = statePayload.tick;
             }
         }
-
 
         private void Extrapolate()
         {
@@ -301,23 +276,13 @@ namespace Kart
         }
 
 
-        [ClientRpc(Delivery = RpcDelivery.Unreliable)]
-        private void SendToClientRpc(StatePayload statePayload)
-        {
-            if (statePayload.tick >= lastEchoPredictionBufferTick)
-            {
-                serverEchoPredictionBuffer.Add(statePayload);
-                lastEchoPredictionBufferTick = statePayload.tick;
-            }
-
-            if (!IsOwner) return;
-            lastServerState = statePayload;
-        }
-
         private void HandleClientTick()
         {
+            Debug.Log("handleclienttick");
             if (IsOwner)
             {
+                Debug.Log("inside is owner of handleclienttick");
+
                 var currentTick = networkTimer.CurrentTick;
                 var bufferIndex = currentTick % k_bufferSize;
                 var inputs = inputHandler.Inputs;
@@ -335,6 +300,8 @@ namespace Kart
                 };
 
                 clientInputBuffer.Add(inputPayload, bufferIndex);
+                Debug.Log("should now send to server rpc");
+
                 SendToServerRpc(inputPayload);
 
                 // otherwise we apply movement twice for the host, once here and once in HandleServerTick
@@ -545,9 +512,20 @@ namespace Kart
         }
 
 
-        [ServerRpc(Delivery = RpcDelivery.Unreliable)]
-        private void SendToServerRpc(InputPayload inputPayload)
+        [Rpc(SendTo.Server, Delivery = RpcDelivery.Unreliable)]
+        private void SendToServerRpc(InputPayload inputPayload, RpcParams p = default)
         {
+            Debug.Log("SendToServerRpc called from client: " + p.Receive.SenderClientId);
+            var senderId = p.Receive.SenderClientId;
+            var shardId = ProxyScript.Instance.GetCorrespondingShardId(senderId);
+            Debug.Log("senderId: " + senderId + " shardId: " + shardId);
+            SendToShardClientRpc(inputPayload, RpcTarget.Single(shardId, RpcTargetUse.Temp));
+        }
+
+        [Rpc(SendTo.SpecifiedInParams, Delivery = RpcDelivery.Unreliable)]
+        private void SendToShardClientRpc(InputPayload inputPayload, RpcParams rpcParams = default)
+        {
+            Debug.Log("shard received client rpc.");
             // only enqueue if its a new state
             if (inputPayload.tick <= lastProcessedTickForClient)
                 return;
@@ -555,6 +533,7 @@ namespace Kart
             serverInputQueue.Enqueue(inputPayload);
             lastProcessedTickForClient = inputPayload.tick;
         }
+
 
         // this is where the client gets reconciled to
         private StatePayload ProcessMovementDummyPlayer(InputPayload inputPayload, float deltaTime)
