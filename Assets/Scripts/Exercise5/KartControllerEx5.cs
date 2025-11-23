@@ -208,7 +208,9 @@ namespace Kart
             if (ProxyScript.Instance.ClientIdToRole.ContainsKey(clientId))
             {
                 var otherClientId = ProxyScript.Instance.GetOtherClientId(clientId);
-                SendServerStateBufferToOtherClientRpc(statePayload, RpcTarget.Single(otherClientId, RpcTargetUse.Temp));
+                if (NetworkObject.IsNetworkVisibleTo(otherClientId))
+                    SendServerStateBufferToOtherClientRpc(statePayload,
+                        RpcTarget.Single(otherClientId, RpcTargetUse.Temp));
             }
 
             if (ProxyScript.Instance.GetOtherShardId(senderId) != 1000)
@@ -448,8 +450,7 @@ namespace Kart
                 return;
             transform.position = rewindState.position;
             transform.rotation = rewindState.rotation;
-            DummyPlayerCarController.maxSpeed = 45;
-            DummyPlayerCarController.rotationSpeed = 90;
+
             carController.maxSpeed = 45;
             carController.rotationSpeed = 90;
 

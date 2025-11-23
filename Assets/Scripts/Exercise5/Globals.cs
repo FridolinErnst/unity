@@ -5,6 +5,9 @@ namespace Kart
 {
     public class Globals : MonoBehaviour
     {
+        public static NetworkingRole networkingRole = NetworkingRole.None;
+        public static NetworkingRole networkingRoleSuperset = NetworkingRole.None;
+
         private void Awake()
         {
             //Is this unity editor instance opening a clone project?
@@ -44,9 +47,6 @@ namespace Kart
                 Debug.Log("The custom argument of this clone project is: " + networkingRole);
             }
         }
-
-        public static NetworkingRole networkingRole = NetworkingRole.None;
-        public static NetworkingRole networkingRoleSuperset = NetworkingRole.None;
     }
 
     public enum NetworkingRole

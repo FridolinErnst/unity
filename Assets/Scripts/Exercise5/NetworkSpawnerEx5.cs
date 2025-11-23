@@ -11,7 +11,7 @@ public class NetworkSpawnerEx5 : NetworkBehaviour
     private GameObject NetworkedInstance;
 
     public GameObject aiCarPrefab;
-    [SerializeField] private GameObject playerCarPrefab;
+    public GameObject playerCarPrefab;
     public int aiCarCount = 3;
     private readonly List<GameObject> spawnedAICars = new();
     private readonly Color shard1Color = new(0.2f, 0.6f, 1f);
@@ -24,6 +24,12 @@ public class NetworkSpawnerEx5 : NetworkBehaviour
 
         ProxyScript.Instance.OnRoleRegistered -= HandleRoleRegistered;
         ProxyScript.Instance.OnRoleRegistered += HandleRoleRegistered;
+        ProxyScript.Instance.OnRoleRegistered += OnClientConnected;
+    }
+
+    private void Update()
+    {
+        Debug.Log("playerCarPrefab is " + (playerCarPrefab != null ? "set" : "null"));
     }
 
     public override void OnNetworkDespawn()
@@ -31,7 +37,10 @@ public class NetworkSpawnerEx5 : NetworkBehaviour
         if (NetworkedInstance != null && NetworkedInstance.GetComponent<NetworkObject>().IsOwner)
             Destroy(NetworkedInstance);
         if (IsServer)
+        {
             ProxyScript.Instance.OnRoleRegistered -= HandleRoleRegistered;
+            ProxyScript.Instance.OnRoleRegistered -= OnClientConnected;
+        }
     }
 
     private void HandleRoleRegistered(ulong clientId, NetworkingRole role)
@@ -80,7 +89,7 @@ public class NetworkSpawnerEx5 : NetworkBehaviour
     {
         for (var i = 0; i < aiCarCount; i++)
         {
-            var aiCar = Instantiate(aiCarPrefab, GetSpawnPoint(i), Quaternion.identity);
+            var aiCar = Instantiate(PrefabContainerScript.Instance.aiCarPrefab, GetSpawnPoint(i), Quaternion.identity);
 
             // Colorize before network spawn so clients see correct visuals immediately
             ColorizeCar(aiCar, color);
@@ -92,15 +101,29 @@ public class NetworkSpawnerEx5 : NetworkBehaviour
 
     private void SpawnClientCar(ulong clientId, Color color)
     {
-        var playerCar = Instantiate(playerCarPrefab, GetSpawnPoint(0), Quaternion.identity);
+        var playerCar = Instantiate(PrefabContainerScript.Instance.playerCarPrefab, GetSpawnPoint(0),
+            Quaternion.identity);
 
         // Colorize before network spawn so clients see correct visuals immediately
         ColorizeCar(playerCar, color);
 
         playerCar.GetComponent<NetworkObject>().SpawnWithOwnership(clientId);
-        spawnedAICars.Add(playerCar);
+        //spawnedAICars.Add(playerCar);
     }
 
+    // Called on the server when any new client joins
+    private void OnClientConnected(ulong newClientId, NetworkingRole role)
+    {
+        if (role == NetworkingRole.IsShard2 || role == NetworkingRole.IsShard1)
+            foreach (var aiCar in spawnedAICars)
+            {
+                var netObj = aiCar.GetComponent<NetworkObject>();
+                var gate = aiCar.GetComponent<CarObserverGate>();
+                gate?.AllowClient(newClientId);
+                if (!netObj.IsNetworkVisibleTo(newClientId))
+                    netObj.NetworkShow(newClientId);
+            }
+    }
 
     private Vector3 GetSpawnPoint(int idx)
     {

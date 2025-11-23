@@ -50,9 +50,19 @@ namespace Kart
         }
 
 
+        private void Update()
+        {
+            Debug.Log("networking role: " + Globals.networkingRole);
+        }
+
         public override void OnNetworkSpawn()
         {
-            if (!IsServer) RegisterRoleServerRpc(Globals.networkingRole);
+            if (!IsServer)
+            {
+                Debug.Log("Registering role from client: " + Globals.networkingRole);
+                RegisterRoleServerRpc(Globals.networkingRole);
+            }
+
             if (IsServer)
             {
                 NetworkManager.OnClientConnectedCallback += cid => _pendingSpawn.Add(cid);

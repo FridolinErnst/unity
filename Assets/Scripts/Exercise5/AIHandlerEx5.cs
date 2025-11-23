@@ -29,15 +29,6 @@ namespace Kart
         [SerializeField] private LayerMask playerLayer; // Filter for player objects
         private readonly HashSet<ulong> clientsInZone = new();
 
-        public override void OnNetworkSpawn()
-        {
-            Debug.Log($"[{NetworkManager.LocalClientId}] Car spawned here. IsOwner={IsOwner}, IsServer={IsServer}");
-
-            if (!IsServer) return;
-            //NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
-
-            // Now the object is hidden for everyone until you specifically call NetworkShow(clientId)
-        }
 
         private void OnClientConnected(ulong clientId)
         {
@@ -112,10 +103,10 @@ namespace Kart
             }
         }
 
-
+        /*
         private void OnTriggerEnter(Collider other)
         {
-            if (!IsServer) return;
+            if (Globals.networkingRoleSuperset != NetworkingRole.IsShard) return;
             //if (OwnerClientId == NetworkManager.ServerClientId) return;
 
             Debug.Log("OnTriggerEnter called for " + other.gameObject.name);
@@ -132,6 +123,7 @@ namespace Kart
             // Add to the visible clients and show the object for this client
             if (clientId == NetworkManager.ServerClientId)
                 return;
+            if(Globals.networkingRole != ProxyScript.Instance.GetCorrespondingShardRole(clientId))
             if (clientsInZone.Add(clientId))
                 if (!NetworkObject.IsNetworkVisibleTo(clientId))
                 {
@@ -162,22 +154,23 @@ namespace Kart
                 if (NetworkObject.IsNetworkVisibleTo(clientId))
                     NetworkObject.NetworkHide(clientId);
         }
-
+        */
         private void LateUpdate()
         {
-            if (Globals.networkingRoleSuperset != NetworkingRole.IsShard) return;
+            if (NetworkManager.LocalClientId != OwnerClientId) return;
 
+            Debug.Log("is owner id: " + OwnerClientId);
             SendAiCarStateToServerRpc(transform.position, transform.rotation);
-            foreach (var clientId in clientsInZone)
+            /* foreach (var clientId in clientsInZone)
             {
-                /* Broadcast state only to clients in the zone
+                Broadcast state only to clients in the zone
                 Debug.Log("Broadcasting to client " + clientId);
                 BroadcastStateClientRpc(transform.position, transform.rotation,
                     new ClientRpcParams
                     {
                         Send = new ClientRpcSendParams { TargetClientIds = new[] { clientId } }
-                    }); */
-            }
+                    });
+            }*/
         }
 
         [Rpc(SendTo.Server, Delivery = RpcDelivery.Unreliable)]
@@ -188,7 +181,8 @@ namespace Kart
             var senderId = p.Receive.SenderClientId;
 
             foreach (var clientId in ProxyScript.Instance.GetAllOtherClients(senderId))
-                BroadcastStateClientRpc(position, rotation, RpcTarget.Single(clientId, RpcTargetUse.Temp));
+                if (NetworkObject.IsNetworkVisibleTo(clientId))
+                    BroadcastStateClientRpc(position, rotation, RpcTarget.Single(clientId, RpcTargetUse.Temp));
         }
 
         [Rpc(SendTo.SpecifiedInParams, Delivery = RpcDelivery.Unreliable)]

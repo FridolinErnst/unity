@@ -1,77 +1,139 @@
-using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
 
-public class PlayerVisiblityControllerEx5 : NetworkBehaviour
+namespace Kart
 {
-    [SerializeField] private LayerMask playerLayer; // Filter for player objects
-    private readonly HashSet<ulong> clientsInZone = new();
-
-    public override void OnNetworkSpawn()
+    public class PlayerVisiblityControllerEx5 : NetworkBehaviour
     {
-        //if (!IsOwner) return;
-        //NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
+        /*
+        [SerializeField] private LayerMask playerLayer; // Filter for player objects
 
-        // Now the object is hidden for everyone until you specifically call NetworkShow(clientId)
-    }
+        private void OnTriggerEnter(Collider other)
+        {
+            if (Globals.networkingRoleSuperset != NetworkingRole.IsShard) return;
+            if (Globals.networkingRole != ProxyScript.Instance.GetCorrespondingShardRole(OwnerClientId)) return;
 
-    private void OnClientConnected(ulong clientId)
-    {
-        // Hide players from players
-        foreach (var netObj in FindObjectsOfType<NetworkObject>())
-            if (netObj.gameObject.layer == playerLayer)
-                if (netObj.IsSpawned && netObj.OwnerClientId != clientId && netObj.IsNetworkVisibleTo(clientId))
-                    netObj.NetworkHide(clientId);
-    }
 
-    private void OnTriggerEnter(Collider other)
-    {
-        return;
-        if (!IsServer) return;
-        //if (OwnerClientId == NetworkManager.ServerClientId) return;
+            //if (OwnerClientId == NetworkManager.ServerClientId) return;
 
-        Debug.Log("OnTriggerEnter called from player for " + other.gameObject.name);
+            Debug.Log("OnTriggerEnter called from player for " + other.gameObject.name);
 
-        // Check if the other's layer is part of the playerLayer mask
-        if (((1 << other.gameObject.layer) & playerLayer.value) == 0)
-            return; // Not a player object (according to the mask)
+            // Check if the other's layer is part of the playerLayer mask
+            if (((1 << other.gameObject.layer) & playerLayer.value) == 0)
+                return; // Not a player object (according to the mask)
 
-        var netObj = other.GetComponentInParent<NetworkObject>();
-        if (netObj == null)
-            return; // Not a networked player, ignore
+            var netObj = other.GetComponentInParent<NetworkObject>();
+            if (netObj == null)
+                return; // Not a networked player, ignore
 
-        var clientId = netObj.OwnerClientId;
+            var otherObjectClientId = netObj.OwnerClientId;
 
-        // Add to the visible clients and show the object for this client
-        if (clientsInZone.Add(clientId))
-            if (!NetworkObject.IsNetworkVisibleTo(clientId))
+            // Add to the visible clients and show the object for this client
+            if (!netObj.IsNetworkVisibleTo(OwnerClientId))
             {
-                NetworkObject.NetworkShow(clientId);
-                Debug.Log("Client " + clientId + " entered zone, showing object.");
+                MakeObjectVisibleToClientServerRpc(netObj, OwnerClientId);
+                Debug.Log("Client " + otherObjectClientId + " entered zone, showing object.");
             }
-    }
+        }
 
-    private void OnTriggerExit(Collider other)
-    {
-        return;
-        if (!IsServer) return;
-        //if (OwnerClientId == NetworkManager.ServerClientId) return;
+        private void OnTriggerExit(Collider other)
+        {
+            if (Globals.networkingRoleSuperset != NetworkingRole.IsShard) return;
+            if (Globals.networkingRole != ProxyScript.Instance.GetCorrespondingShardRole(OwnerClientId)) return;
 
-        Debug.Log("OnTriggerExit called from player for  " + other.gameObject.name);
-        // Check if the other's layer is part of the playerLayer mask
-        if (((1 << other.gameObject.layer) & playerLayer.value) == 0)
-            return; // Not a player object (according to the mask)
 
-        var netObj = other.GetComponentInParent<NetworkObject>();
-        if (netObj == null)
-            return; // Not a networked player, ignore
+            //if (OwnerClientId == NetworkManager.ServerClientId) return;
 
-        var clientId = netObj.OwnerClientId;
-        if (clientId == NetworkManager.ServerClientId)
-            return;
-        // Remove from the visible clients and hide the object for this client
-        if (clientsInZone.Remove(clientId))
-            if (netObj.IsNetworkVisibleTo(clientId))
-                NetworkObject.NetworkHide(clientId);
+            Debug.Log("OnTriggerEnter called from player for " + other.gameObject.name);
+
+            // Check if the other's layer is part of the playerLayer mask
+            if (((1 << other.gameObject.layer) & playerLayer.value) == 0)
+                return; // Not a player object (according to the mask)
+
+            var netObj = other.GetComponentInParent<NetworkObject>();
+            if (netObj == null)
+                return; // Not a networked player, ignore
+
+            var otherObjectClientId = netObj.OwnerClientId;
+
+            // Add to the visible clients and show the object for this client
+            if (!netObj.IsNetworkVisibleTo(OwnerClientId))
+            {
+                MakeObjectInvisibleToClientServerRpc(netObj, OwnerClientId);
+                Debug.Log("Client " + otherObjectClientId + " entered zone, showing object.");
+            }
+        }
+
+        [Rpc(SendTo.Server, Delivery = RpcDelivery.Reliable)]
+        private void MakeObjectVisibleToClientServerRpc(NetworkObjectReference targetRef, ulong clientId)
+        {
+            Debug.Log("making object visible to client " + clientId);
+            if (targetRef.TryGet(out var target) && target.IsSpawned)
+                if (!target.IsNetworkVisibleTo(clientId))
+                    target.NetworkShow(clientId); // per-client show [web:28][web:21]
+        }
+
+        [Rpc(SendTo.Server, Delivery = RpcDelivery.Reliable)]
+        private void MakeObjectInvisibleToClientServerRpc(NetworkObjectReference targetRef, ulong clientId)
+        {
+            Debug.Log("making object invisible to client " + clientId);
+            if (targetRef.TryGet(out var target) && target.IsSpawned)
+                if (target.IsNetworkVisibleTo(clientId))
+                    target.NetworkHide(clientId); // per-client hide [web:28][web:8]
+        } */
+
+        [SerializeField] private LayerMask playerLayer;
+        [SerializeField] private CarObserverGate carGate; // assign in inspector
+
+        private void Reset()
+        {
+            if (carGate == null) carGate = GetComponentInParent<CarObserverGate>();
+        }
+
+        private void OnTriggerEnter(Collider other)
+        {
+            if (Globals.networkingRoleSuperset != NetworkingRole.IsShard) return;
+            if (Globals.networkingRole != ProxyScript.Instance.GetCorrespondingShardRole(OwnerClientId)) return;
+
+            if (((1 << other.gameObject.layer) & playerLayer.value) == 0) return;
+
+            var playerNO = other.GetComponentInParent<NetworkObject>();
+            if (playerNO == null) return;
+
+            RequestAllowServerRpc(carGate != null ? playerNO : null, OwnerClientId);
+        }
+
+        private void OnTriggerExit(Collider other)
+        {
+            if (Globals.networkingRoleSuperset != NetworkingRole.IsShard) return;
+            if (Globals.networkingRole != ProxyScript.Instance.GetCorrespondingShardRole(OwnerClientId)) return;
+
+            if (((1 << other.gameObject.layer) & playerLayer.value) == 0) return;
+
+            var playerNO = other.GetComponentInParent<NetworkObject>();
+            if (playerNO == null) return;
+
+            RequestDenyServerRpc(carGate != null ? playerNO : null, OwnerClientId);
+        }
+
+        [Rpc(SendTo.Server, Delivery = RpcDelivery.Reliable)]
+        private void RequestAllowServerRpc(NetworkObjectReference carRef, ulong clientId)
+        {
+            if (carRef.TryGet(out var carNO))
+            {
+                var gate = carNO.GetComponent<CarObserverGate>();
+                gate?.AllowClient(clientId);
+            }
+        }
+
+        [Rpc(SendTo.Server, Delivery = RpcDelivery.Reliable)]
+        private void RequestDenyServerRpc(NetworkObjectReference carRef, ulong clientId)
+        {
+            if (carRef.TryGet(out var carNO))
+            {
+                var gate = carNO.GetComponent<CarObserverGate>();
+                gate?.DenyClient(clientId);
+            }
+        }
     }
 }

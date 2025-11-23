@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 9089724964156263578}
   - component: {fileID: 8726567746804509022}
   - component: {fileID: 7360353222920385342}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Capsule
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -116,7 +116,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1463599088996573668}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: car
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -155,7 +155,7 @@ GameObject:
   - component: {fileID: 7929665584752817294}
   - component: {fileID: 459489459142924641}
   - component: {fileID: 5226456615209024830}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Cube
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -238,7 +238,7 @@ GameObject:
   - component: {fileID: 7643833250630216922}
   - component: {fileID: 8804685478217534547}
   - component: {fileID: 2771314530164001205}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Capsule
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -322,7 +322,7 @@ GameObject:
   - component: {fileID: 3652838700532369762}
   - component: {fileID: 4936122723433121735}
   - component: {fileID: 2216169039067802336}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Cylinder
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -432,7 +432,8 @@ GameObject:
   - component: {fileID: 8975490502385744111}
   - component: {fileID: 5658433685379558855}
   - component: {fileID: 8180307582844832873}
-  m_Layer: 0
+  - component: {fileID: 5675062346314134423}
+  m_Layer: 3
   m_Name: Player AI Ex5
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -623,6 +624,18 @@ MonoBehaviour:
   playerLayer:
     serializedVersion: 2
     m_Bits: 8
+--- !u!114 &5675062346314134423
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6421001238606955872}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e36ffd86136d8844799b9091217f8269, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &6769992370949512929
 GameObject:
   m_ObjectHideFlags: 0
@@ -633,7 +646,7 @@ GameObject:
   m_Component:
   - component: {fileID: 5169103503564769888}
   - component: {fileID: 7246337591737860796}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Top Down Camera
   m_TagString: MainCamera
   m_Icon: {fileID: 0}
@@ -718,7 +731,7 @@ GameObject:
   - component: {fileID: 6356307287131301569}
   - component: {fileID: 8353770090754629714}
   - component: {fileID: 4441345320053289454}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Cylinder (2)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -825,7 +838,7 @@ GameObject:
   - component: {fileID: 4747968251384815435}
   - component: {fileID: 8995106237310116413}
   - component: {fileID: 7587358472568800013}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Cylinder (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -932,7 +945,7 @@ GameObject:
   - component: {fileID: 3640726491783295978}
   - component: {fileID: 2728982509120074736}
   - component: {fileID: 6999176665373274313}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Cylinder (3)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
