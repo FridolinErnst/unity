@@ -18,19 +18,17 @@ public class NetworkSpawnerEx5 : NetworkBehaviour
     private readonly Color shard2Color = new(1f, 0.5f, 0.2f);
     [SerializeField] private Material baseCarMaterial;
 
+
     public override void OnNetworkSpawn()
     {
         if (!IsServer) return;
 
         ProxyScript.Instance.OnRoleRegistered -= HandleRoleRegistered;
         ProxyScript.Instance.OnRoleRegistered += HandleRoleRegistered;
+        ProxyScript.Instance.OnRoleRegistered -= OnClientConnected;
         ProxyScript.Instance.OnRoleRegistered += OnClientConnected;
     }
 
-    private void Update()
-    {
-        Debug.Log("playerCarPrefab is " + (playerCarPrefab != null ? "set" : "null"));
-    }
 
     public override void OnNetworkDespawn()
     {
@@ -108,6 +106,7 @@ public class NetworkSpawnerEx5 : NetworkBehaviour
         ColorizeCar(playerCar, color);
 
         playerCar.GetComponent<NetworkObject>().SpawnWithOwnership(clientId);
+        Debug.Log("spawning client car for client id " + clientId);
         //spawnedAICars.Add(playerCar);
     }
 

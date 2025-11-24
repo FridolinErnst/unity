@@ -7,6 +7,7 @@ namespace Kart
     {
         public static NetworkingRole networkingRole = NetworkingRole.None;
         public static NetworkingRole networkingRoleSuperset = NetworkingRole.None;
+        public static ulong ErrorClientId = 1000;
 
         private void Awake()
         {

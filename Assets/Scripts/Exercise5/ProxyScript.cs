@@ -26,7 +26,7 @@ namespace Kart
 
         private readonly Dictionary<NetworkingRole, ulong> _roleToClientId = new();
         private readonly Dictionary<ulong, NetworkingRole> _clientIdToRole = new();
-        private readonly ulong ErrorClientId = 1000;
+        public const ulong ErrorClientId = 1000;
 
         // Expose read-only view
         public IReadOnlyDictionary<NetworkingRole, ulong> RoleToClientId => _roleToClientId;
@@ -50,19 +50,8 @@ namespace Kart
         }
 
 
-        private void Update()
-        {
-            Debug.Log("networking role: " + Globals.networkingRole);
-        }
-
         public override void OnNetworkSpawn()
         {
-            if (!IsServer)
-            {
-                Debug.Log("Registering role from client: " + Globals.networkingRole);
-                RegisterRoleServerRpc(Globals.networkingRole);
-            }
-
             if (IsServer)
             {
                 NetworkManager.OnClientConnectedCallback += cid => _pendingSpawn.Add(cid);
@@ -72,10 +61,9 @@ namespace Kart
             }
         }
 
-        [Rpc(SendTo.Server)]
-        public void RegisterRoleServerRpc(NetworkingRole role, RpcParams p = default)
+        public void RegisterRoleServer(NetworkingRole role, ulong senderId)
         {
-            var senderId = p.Receive.SenderClientId;
+            if (_clientIdToRole.ContainsKey(senderId)) return;
             _roleToClientId[role] = senderId;
             _clientIdToRole[senderId] = role;
             Debug.Log("roletoclientid count: " + _roleToClientId.Count);
@@ -103,21 +91,6 @@ namespace Kart
         {
             RegisterClient(clientId, role);
         }
-
-
-        [Rpc(SendTo.SpecifiedInParams)]
-        private void NotifyRpc(string msg, RpcParams rpcParams = default)
-        {
-            /* runs on target(s) */
-        }
-
-        // Server side call to one client
-
-        public void SendToResponsibleShard(ulong clientId, string msg)
-        {
-            NotifyRpc(msg, RpcTarget.Single(clientId, RpcTargetUse.Temp));
-        }
-
 
         public ulong GetCorrespondingShardId(ulong clientId)
         {
@@ -189,11 +162,11 @@ namespace Kart
                         return ErrorClientId;
                     default:
                         Debug.LogWarning("Client role does not have a corresponding other client.");
-                        return 0;
+                        return ErrorClientId;
                 }
 
             Debug.LogWarning("Client ID not found in mapping.");
-            return 0;
+            return ErrorClientId;
         }
 
         public ulong GetOtherShardId(ulong shardId)

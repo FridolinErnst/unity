@@ -208,15 +208,16 @@ namespace Kart
             if (ProxyScript.Instance.ClientIdToRole.ContainsKey(clientId))
             {
                 var otherClientId = ProxyScript.Instance.GetOtherClientId(clientId);
-                if (NetworkObject.IsNetworkVisibleTo(otherClientId))
+                if (otherClientId != Globals.ErrorClientId && NetworkObject.IsNetworkVisibleTo(otherClientId))
                     SendServerStateBufferToOtherClientRpc(statePayload,
                         RpcTarget.Single(otherClientId, RpcTargetUse.Temp));
             }
 
-            if (ProxyScript.Instance.GetOtherShardId(senderId) != 1000)
+            if (ProxyScript.Instance.GetOtherShardId(senderId) != Globals.ErrorClientId)
             {
                 var otherShardId = ProxyScript.Instance.GetOtherShardId(senderId);
-                SyncCarWithOtherShardClientRpc(statePayload, RpcTarget.Single(otherShardId, RpcTargetUse.Temp));
+                if (otherShardId != Globals.ErrorClientId && NetworkObject.IsNetworkVisibleTo(otherShardId))
+                    SyncCarWithOtherShardClientRpc(statePayload, RpcTarget.Single(otherShardId, RpcTargetUse.Temp));
             }
         }
 
@@ -228,6 +229,7 @@ namespace Kart
             transform.rotation = statePayload.rotation;
         }
 
+        //shard sends to responsible client
         [Rpc(SendTo.SpecifiedInParams, Delivery = RpcDelivery.Unreliable)]
         private void SendServerStateBufferToResponsibleClientRpc(StatePayload statePayload,
             RpcParams rpcParams = default)
@@ -520,7 +522,8 @@ namespace Kart
             var senderId = p.Receive.SenderClientId;
             var shardId = ProxyScript.Instance.GetCorrespondingShardId(senderId);
             Debug.Log("senderId: " + senderId + " shardId: " + shardId);
-            SendToShardClientRpc(inputPayload, RpcTarget.Single(shardId, RpcTargetUse.Temp));
+            if (NetworkObject.IsNetworkVisibleTo(shardId))
+                SendToShardClientRpc(inputPayload, RpcTarget.Single(shardId, RpcTargetUse.Temp));
         }
 
         [Rpc(SendTo.SpecifiedInParams, Delivery = RpcDelivery.Unreliable)]
