@@ -17,33 +17,36 @@ public class NetworkSpawnerEx5 : NetworkBehaviour
     private readonly Color shard1Color = new(0.2f, 0.6f, 1f);
     private readonly Color shard2Color = new(1f, 0.5f, 0.2f);
     [SerializeField] private Material baseCarMaterial;
+    public static NetworkSpawnerEx5 Instance { get; private set; }
 
     public override void OnNetworkSpawn()
     {
         if (!IsServer) return;
-
-        ProxyScript.Instance.OnRoleRegistered -= HandleRoleRegistered;
-        ProxyScript.Instance.OnRoleRegistered += HandleRoleRegistered;
         ProxyScript.Instance.OnRoleRegistered += OnClientConnected;
     }
 
-    private void Update()
+    private void Awake()
     {
-        Debug.Log("playerCarPrefab is " + (playerCarPrefab != null ? "set" : "null"));
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        Instance = this;
+
+        // Optional: persist across scene loads (host/server recommended)
+        DontDestroyOnLoad(gameObject);
     }
 
     public override void OnNetworkDespawn()
     {
         if (NetworkedInstance != null && NetworkedInstance.GetComponent<NetworkObject>().IsOwner)
             Destroy(NetworkedInstance);
-        if (IsServer)
-        {
-            ProxyScript.Instance.OnRoleRegistered -= HandleRoleRegistered;
-            ProxyScript.Instance.OnRoleRegistered -= OnClientConnected;
-        }
+        if (IsServer) ProxyScript.Instance.OnRoleRegistered -= OnClientConnected;
     }
 
-    private void HandleRoleRegistered(ulong clientId, NetworkingRole role)
+    public void HandleRoleRegistered(ulong clientId, NetworkingRole role)
     {
         switch (role)
         {
@@ -54,7 +57,6 @@ public class NetworkSpawnerEx5 : NetworkBehaviour
                 SpawnClientCar(clientId, shard2Color);
                 break;
             case NetworkingRole.IsShard1:
-                Debug.Log("spawned a car for shard " + clientId);
                 SpawnShardCar(clientId, shard1Color);
                 break;
             case NetworkingRole.IsShard2:
@@ -127,6 +129,6 @@ public class NetworkSpawnerEx5 : NetworkBehaviour
 
     private Vector3 GetSpawnPoint(int idx)
     {
-        return new Vector3(idx * 5f, 0, 0);
+        return new Vector3(idx * 30f, 0, 0);
     }
 }

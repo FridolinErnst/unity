@@ -69,6 +69,12 @@ namespace Kart
         private CircularBuffer<StatePayload> serverStateBuffer;
 
 
+        //Input exercise 6
+        private bool allowInput = true;
+        private CountdownTimer stopInputTimer;
+        private readonly int stopReceiveInputTime = 4;
+        private CountdownTimer invunerablityTimer;
+
         private void Awake()
         {
             DummyPlayerCarController = DummyPlayer.GetComponent<CarControllerEx5>();
@@ -87,6 +93,11 @@ namespace Kart
             clientNetworkTransform = GetComponent<ClientNetworkTransform>();
             extrapolationTimer = new CountdownTimer(extrapolationLimit);
             reconciliationTimer.OnTimerStart += () => { extrapolationTimer.Stop(); };
+            stopInputTimer = new CountdownTimer(stopReceiveInputTime);
+            stopInputTimer.OnTimerStop += () => { AllowReceiveInput(); };
+            stopInputTimer.OnTimerStart += () => { PrintTimerStart(); };
+            invunerablityTimer = new CountdownTimer(stopReceiveInputTime);
+            invunerablityTimer.OnTimerStart += () => { PrintTimerStart(); };
 
             serverEchoEx4 = GetComponent<ServerEchoEx4>();
 
@@ -108,6 +119,8 @@ namespace Kart
             networkTimer.Update(Time.deltaTime);
             reconciliationTimer.Tick(Time.deltaTime);
             extrapolationTimer.Tick(Time.deltaTime);
+            stopInputTimer.Tick(Time.deltaTime);
+            invunerablityTimer.Tick(Time.deltaTime);
             //Extrapolate();
 
             // this manages local cars that are in the past
@@ -164,14 +177,11 @@ namespace Kart
 
         private void HandleServerTick()
         {
-            Debug.Log("inside handleservertick");
             if (Globals.networkingRoleSuperset != NetworkingRole.IsShard) return;
-            Debug.Log("inside handleservertick and we are shard");
 
             //only run if the shard is responsible for this client
             if (Globals.networkingRole != ProxyScript.Instance.GetCorrespondingShardRole(OwnerClientId))
                 return;
-            Debug.Log("inside handleservertick and we are shard responsible for this client");
 
             var bufferIndex = -1;
             InputPayload inputPayload = default;
@@ -182,14 +192,12 @@ namespace Kart
                 bufferIndex = inputPayload.tick % k_bufferSize;
 
                 var statePayload = ProcessMovement(inputPayload, networkTimer.MinTimeBetweenTicks);
-                Debug.Log("processing movements");
 
 
                 serverCube.transform.position = statePayload.position;
                 serverStateBuffer.Add(statePayload, bufferIndex);
             }
 
-            Debug.Log("we should have processed inputs");
 
             if (bufferIndex == -1) return;
 
@@ -200,8 +208,6 @@ namespace Kart
         [Rpc(SendTo.Server, Delivery = RpcDelivery.Unreliable)]
         private void SendServerStateBufferToServerRpc(StatePayload statePayload, RpcParams p = default)
         {
-            Debug.Log("we send the resulting state to server");
-
             var senderId = p.Receive.SenderClientId;
             var clientId = ProxyScript.Instance.GetCorrespondingClientId(senderId);
             SendServerStateBufferToResponsibleClientRpc(statePayload, RpcTarget.Single(clientId, RpcTargetUse.Temp));
@@ -213,7 +219,7 @@ namespace Kart
                         RpcTarget.Single(otherClientId, RpcTargetUse.Temp));
             }
 
-            if (ProxyScript.Instance.GetOtherShardId(senderId) != 1000)
+            if (ProxyScript.Instance.GetOtherShardId(senderId) != ProxyScript.Instance.ErrorClientId)
             {
                 var otherShardId = ProxyScript.Instance.GetOtherShardId(senderId);
                 SyncCarWithOtherShardClientRpc(statePayload, RpcTarget.Single(otherShardId, RpcTargetUse.Temp));
@@ -280,11 +286,9 @@ namespace Kart
 
         private void HandleClientTick()
         {
-            Debug.Log("handleclienttick");
+            if (!allowInput) return;
             if (IsOwner)
             {
-                Debug.Log("inside is owner of handleclienttick");
-
                 var currentTick = networkTimer.CurrentTick;
                 var bufferIndex = currentTick % k_bufferSize;
                 var inputs = inputHandler.Inputs;
@@ -302,7 +306,6 @@ namespace Kart
                 };
 
                 clientInputBuffer.Add(inputPayload, bufferIndex);
-                Debug.Log("should now send to server rpc");
 
                 SendToServerRpc(inputPayload);
 
@@ -516,17 +519,14 @@ namespace Kart
         [Rpc(SendTo.Server, Delivery = RpcDelivery.Unreliable)]
         private void SendToServerRpc(InputPayload inputPayload, RpcParams p = default)
         {
-            Debug.Log("SendToServerRpc called from client: " + p.Receive.SenderClientId);
             var senderId = p.Receive.SenderClientId;
             var shardId = ProxyScript.Instance.GetCorrespondingShardId(senderId);
-            Debug.Log("senderId: " + senderId + " shardId: " + shardId);
             SendToShardClientRpc(inputPayload, RpcTarget.Single(shardId, RpcTargetUse.Temp));
         }
 
         [Rpc(SendTo.SpecifiedInParams, Delivery = RpcDelivery.Unreliable)]
         private void SendToShardClientRpc(InputPayload inputPayload, RpcParams rpcParams = default)
         {
-            Debug.Log("shard received client rpc.");
             // only enqueue if its a new state
             if (inputPayload.tick <= lastProcessedTickForClient)
                 return;
@@ -584,6 +584,24 @@ namespace Kart
                 networkObjectId = inputPayload.networkObjectId,
                 timeStamp = NetworkManager.Singleton.LocalTime.Time
             };
+        }
+
+        public void StopReceivingInput()
+        {
+            if (invunerablityTimer.IsRunning) return;
+            allowInput = false;
+            stopInputTimer.Start();
+        }
+
+        public void AllowReceiveInput()
+        {
+            allowInput = true;
+            Debug.Log("Allow input set to true in player car");
+        }
+
+        public void PrintTimerStart()
+        {
+            Debug.Log("Stop input timer started");
         }
     }
 }
