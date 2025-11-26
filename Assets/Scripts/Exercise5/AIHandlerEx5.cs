@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
+using Utilities;
 using Random = UnityEngine.Random;
 
 namespace Kart
@@ -29,6 +30,20 @@ namespace Kart
         [SerializeField] private LayerMask playerLayer; // Filter for player objects
         private readonly HashSet<ulong> clientsInZone = new();
 
+        //Input exercise 6
+        private bool allowInput = true;
+        private CountdownTimer stopInputTimer;
+        private readonly int stopReceiveInputTime = 4;
+        private CountdownTimer invunerablityTimer;
+
+        private void Awake()
+        {
+            stopInputTimer = new CountdownTimer(stopReceiveInputTime);
+            stopInputTimer.OnTimerStop += () => { AllowReceiveInput(); };
+            stopInputTimer.OnTimerStart += () => { PrintTimerStart(); };
+            invunerablityTimer = new CountdownTimer(stopReceiveInputTime);
+            invunerablityTimer.OnTimerStart += () => { PrintTimerStart(); };
+        }
 
         private void OnClientConnected(ulong clientId)
         {
@@ -43,12 +58,14 @@ namespace Kart
 
         private void Update()
         {
+            stopInputTimer.Tick(Time.deltaTime);
+            invunerablityTimer.Tick(Time.deltaTime);
             _IsOwner = IsOwner;
             _IsServer = IsServer;
             _IsClient = IsClient;
 
             if (!IsOwner) return;
-
+            if (!allowInput) return;
             // get old controlls
 
             // adjust controlls
@@ -103,81 +120,16 @@ namespace Kart
             }
         }
 
-        /*
-        private void OnTriggerEnter(Collider other)
-        {
-            if (Globals.networkingRoleSuperset != NetworkingRole.IsShard) return;
-            //if (OwnerClientId == NetworkManager.ServerClientId) return;
-
-            Debug.Log("OnTriggerEnter called for " + other.gameObject.name);
-
-            // Check if the other's layer is part of the playerLayer mask
-            if (((1 << other.gameObject.layer) & playerLayer.value) == 0)
-                return; // Not a player object (according to the mask)
-
-            var netObj = other.GetComponentInParent<NetworkObject>();
-            if (netObj == null)
-                return; // Not a networked player, ignore
-
-            var clientId = netObj.OwnerClientId;
-            // Add to the visible clients and show the object for this client
-            if (clientId == NetworkManager.ServerClientId)
-                return;
-            if(Globals.networkingRole != ProxyScript.Instance.GetCorrespondingShardRole(clientId))
-            if (clientsInZone.Add(clientId))
-                if (!NetworkObject.IsNetworkVisibleTo(clientId))
-                {
-                    NetworkObject.NetworkShow(clientId);
-                    Debug.Log("Client " + clientId + " entered zone, showing object.");
-                }
-        }
-
-        private void OnTriggerExit(Collider other)
-        {
-            if (!IsServer) return;
-            //if (OwnerClientId == NetworkManager.ServerClientId) return;
-            Debug.Log("OnTriggerExit called for " + other.gameObject.name);
-            // Check if the other's layer is part of the playerLayer mask
-            if (((1 << other.gameObject.layer) & playerLayer.value) == 0)
-                return; // Not a player object (according to the mask)
-
-            var netObj = other.GetComponentInParent<NetworkObject>();
-            if (netObj == null)
-                return; // Not a networked player, ignore
-
-            var clientId = netObj.OwnerClientId;
-            // Remove from the visible clients and hide the object for this client
-            if (clientId == NetworkManager.ServerClientId)
-                return;
-
-            if (clientsInZone.Remove(clientId))
-                if (NetworkObject.IsNetworkVisibleTo(clientId))
-                    NetworkObject.NetworkHide(clientId);
-        }
-        */
         private void LateUpdate()
         {
             if (NetworkManager.LocalClientId != OwnerClientId) return;
 
-            Debug.Log("is owner id: " + OwnerClientId);
             SendAiCarStateToServerRpc(transform.position, transform.rotation);
-            /* foreach (var clientId in clientsInZone)
-            {
-                Broadcast state only to clients in the zone
-                Debug.Log("Broadcasting to client " + clientId);
-                BroadcastStateClientRpc(transform.position, transform.rotation,
-                    new ClientRpcParams
-                    {
-                        Send = new ClientRpcSendParams { TargetClientIds = new[] { clientId } }
-                    });
-            }*/
         }
 
         [Rpc(SendTo.Server, Delivery = RpcDelivery.Unreliable)]
         private void SendAiCarStateToServerRpc(Vector3 position, Quaternion rotation, RpcParams p = default)
         {
-            Debug.Log("we send the resulting ai car state to server");
-
             var senderId = p.Receive.SenderClientId;
 
             foreach (var clientId in ProxyScript.Instance.GetAllOtherClients(senderId))
@@ -189,9 +141,26 @@ namespace Kart
         private void BroadcastStateClientRpc(Vector3 position, Quaternion rotation, RpcParams p = default)
         {
             if (IsServer) return; // No need for server to update
-            Debug.Log("received ai car state from server");
             transform.position = position;
             transform.rotation = rotation;
+        }
+
+        public void StopReceivingInput()
+        {
+            if (invunerablityTimer.IsRunning) return;
+            allowInput = false;
+            stopInputTimer.Start();
+        }
+
+        public void AllowReceiveInput()
+        {
+            allowInput = true;
+            Debug.Log("Allow input set to true in player car");
+        }
+
+        public void PrintTimerStart()
+        {
+            Debug.Log("Stop input timer started");
         }
     }
 }

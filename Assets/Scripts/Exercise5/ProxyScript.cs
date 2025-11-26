@@ -26,7 +26,10 @@ namespace Kart
 
         private readonly Dictionary<NetworkingRole, ulong> _roleToClientId = new();
         private readonly Dictionary<ulong, NetworkingRole> _clientIdToRole = new();
-        public const ulong ErrorClientId = 1000;
+        public readonly ulong ErrorClientId = 1000;
+        private readonly Color shard1Color = new(0.2f, 0.6f, 1f);
+
+        private readonly Color shard2Color = new(1f, 0.5f, 0.2f);
 
         // Expose read-only view
         public IReadOnlyDictionary<NetworkingRole, ulong> RoleToClientId => _roleToClientId;
@@ -52,6 +55,12 @@ namespace Kart
 
         public override void OnNetworkSpawn()
         {
+            if (!IsServer)
+            {
+                Debug.Log("Registering role from client: " + Globals.networkingRole);
+                RegisterRoleServerRpc(Globals.networkingRole);
+            }
+
             if (IsServer)
             {
                 NetworkManager.OnClientConnectedCallback += cid => _pendingSpawn.Add(cid);
@@ -61,15 +70,17 @@ namespace Kart
             }
         }
 
-        public void RegisterRoleServer(NetworkingRole role, ulong senderId)
+        [Rpc(SendTo.Server)]
+        public void RegisterRoleServerRpc(NetworkingRole role, RpcParams p = default)
         {
-            if (_clientIdToRole.ContainsKey(senderId)) return;
+            var senderId = p.Receive.SenderClientId;
             _roleToClientId[role] = senderId;
             _clientIdToRole[senderId] = role;
             Debug.Log("roletoclientid count: " + _roleToClientId.Count);
             Debug.Log(string.Join(", ",
                 _roleToClientId.Select(kv => $"{kv.Key}={kv.Value}")));
             Debug.Log(string.Join(", ", _clientIdToRole.Select(kv => $"{kv.Key}={kv.Value}")));
+            NetworkSpawnerEx5.Instance.HandleRoleRegistered(senderId, role);
             OnRoleRegistered?.Invoke(senderId, role); // notify listeners
             if (role == NetworkingRole.IsClient1 || role == NetworkingRole.IsClient2)
             {
@@ -92,6 +103,21 @@ namespace Kart
             RegisterClient(clientId, role);
         }
 
+
+        [Rpc(SendTo.SpecifiedInParams)]
+        private void NotifyRpc(string msg, RpcParams rpcParams = default)
+        {
+            /* runs on target(s) */
+        }
+
+        // Server side call to one client
+
+        public void SendToResponsibleShard(ulong clientId, string msg)
+        {
+            NotifyRpc(msg, RpcTarget.Single(clientId, RpcTargetUse.Temp));
+        }
+
+
         public ulong GetCorrespondingShardId(ulong clientId)
         {
             if (_clientIdToRole.TryGetValue(clientId, out var role))
@@ -103,11 +129,11 @@ namespace Kart
                         return _roleToClientId[NetworkingRole.IsShard2];
                     default:
                         Debug.LogWarning("Client role does not have a corresponding shard.");
-                        return 100000;
+                        return ErrorClientId;
                 }
 
             Debug.LogWarning("Client ID not found in mapping.");
-            return 100000;
+            return ErrorClientId;
         }
 
         public NetworkingRole GetCorrespondingShardRole(ulong clientId)
@@ -118,6 +144,10 @@ namespace Kart
                     case NetworkingRole.IsClient1:
                         return NetworkingRole.IsShard1;
                     case NetworkingRole.IsClient2:
+                        return NetworkingRole.IsShard2;
+                    case NetworkingRole.IsShard1:
+                        return NetworkingRole.IsShard1;
+                    case NetworkingRole.IsShard2:
                         return NetworkingRole.IsShard2;
                     default:
                         Debug.LogWarning("Client role does not have a corresponding shard.");
@@ -162,11 +192,11 @@ namespace Kart
                         return ErrorClientId;
                     default:
                         Debug.LogWarning("Client role does not have a corresponding other client.");
-                        return ErrorClientId;
+                        return 0;
                 }
 
             Debug.LogWarning("Client ID not found in mapping.");
-            return ErrorClientId;
+            return 0;
         }
 
         public ulong GetOtherShardId(ulong shardId)
@@ -204,6 +234,28 @@ namespace Kart
                 if (kv.Key != clientId)
                     otherClients.Add(kv.Key);
             return otherClients;
+        }
+
+        public Color GetColorFromId(ulong clientId)
+        {
+            if (_clientIdToRole.TryGetValue(clientId, out var role))
+                switch (role)
+                {
+                    case NetworkingRole.IsClient1:
+                        return shard1Color;
+                    case NetworkingRole.IsShard1:
+                        return shard1Color;
+                    case NetworkingRole.IsClient2:
+                        return shard2Color;
+                    case NetworkingRole.IsShard2:
+                        return shard2Color;
+                    default:
+                        Debug.LogWarning("Client role does not have a corresponding color.");
+                        return Color.white;
+                }
+
+            Debug.LogWarning("Client ID not found in mapping.");
+            return Color.white;
         }
     }
 }

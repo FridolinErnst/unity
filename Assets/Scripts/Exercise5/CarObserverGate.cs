@@ -31,7 +31,7 @@ public class CarObserverGate : NetworkBehaviour
     }
 
     // NGO calls this before sending spawn/updates to a client for this object
-    private bool CheckVisibility(ulong clientId)
+    public bool CheckVisibility(ulong clientId)
     {
         // Only clients in the allow-list are observers; others won’t get the spawn at all
         return IsSpawned && allowedClients.Contains(clientId);
