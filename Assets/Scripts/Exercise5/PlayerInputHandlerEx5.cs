@@ -6,6 +6,7 @@ namespace Kart
 {
     public class PlayerInputHandlerEx5 : NetworkBehaviour
     {
+        [SerializeField] private KartControllerEx5 kartControllerEx5;
         public float lookSensitivity = 1f;
 
         public float iriggerAxisThreshold = 0.4f;
@@ -34,6 +35,7 @@ namespace Kart
         private void Update()
         {
             if (!IsOwner) return;
+            if (!kartControllerEx5.allowInput) return;
             m_inputs.movement = GetMoveInput();
             m_inputs.look = GetLookInput();
             if (GetBoostInputHeld())

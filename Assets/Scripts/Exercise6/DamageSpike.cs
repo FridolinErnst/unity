@@ -13,6 +13,7 @@ namespace Kart
                 "client " + transform.name + " with id " + NetworkManager.LocalClientId + " and object entered " +
                 other.name);
             // only allow spike to trigger
+            Debug.Log("other gameobject layer: " + LayerMask.LayerToName(other.gameObject.layer));
             if (other.gameObject.layer != LayerMask.NameToLayer("Spike")) return;
 
             // only shards manage this for anticheat

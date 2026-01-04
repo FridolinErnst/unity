@@ -64,10 +64,11 @@ namespace Kart
 
 
         //Input exercise 6
-        private bool allowInput = true;
+        public bool allowInput = true;
         private CountdownTimer stopInputTimer;
         private readonly int stopReceiveInputTime = 4;
-        private CountdownTimer invulnerablityTimer;
+        private CountdownTimer invulnerabilityTimer;
+        private readonly int invulnerabilityTime = 6;
 
         private void Awake()
         {
@@ -88,8 +89,8 @@ namespace Kart
             stopInputTimer = new CountdownTimer(stopReceiveInputTime);
             stopInputTimer.OnTimerStop += () => { AllowReceiveInput(); };
             stopInputTimer.OnTimerStart += () => { PrintTimerStart(); };
-            invulnerablityTimer = new CountdownTimer(stopReceiveInputTime);
-            invulnerablityTimer.OnTimerStart += () => { PrintTimerStart(); };
+            invulnerabilityTimer = new CountdownTimer(invulnerabilityTime);
+            invulnerabilityTimer.OnTimerStart += () => { PrintTimerStart(); };
 
 
             extrapolationTimer.OnTimerStart += () =>
@@ -111,7 +112,7 @@ namespace Kart
             reconciliationTimer.Tick(Time.deltaTime);
             extrapolationTimer.Tick(Time.deltaTime);
             stopInputTimer.Tick(Time.deltaTime);
-            invulnerablityTimer.Tick(Time.deltaTime);
+            invulnerabilityTimer.Tick(Time.deltaTime);
             //Extrapolate();
 
             // this manages local cars that are in the past
@@ -175,17 +176,21 @@ namespace Kart
                 return;
 
             var bufferIndex = -1;
+            var lastProcessedTick = -1;
             InputPayload inputPayload = default;
             while (serverInputQueue.Count > 0)
             {
                 inputPayload = serverInputQueue.Dequeue();
 
+                if (inputPayload.tick <= lastProcessedTick)
+                    continue;
+
                 bufferIndex = inputPayload.tick % k_bufferSize;
 
                 var statePayload = ProcessMovement(inputPayload, networkTimer.MinTimeBetweenTicks);
-
-
                 serverStateBuffer.Add(statePayload, bufferIndex);
+
+                lastProcessedTick = inputPayload.tick;
             }
 
 
@@ -276,8 +281,34 @@ namespace Kart
 
         private void HandleClientTick()
         {
-            if (!allowInput) return;
-            if (IsOwner)
+            if (!allowInput) // so it doesnt continue afterwards with the input from before we stopped
+            {
+                var currentTick = networkTimer.CurrentTick;
+                var bufferIndex = currentTick % k_bufferSize;
+                var inputPayload = new InputPayload
+                {
+                    tick = currentTick,
+                    movement = Vector2.zero,
+                    look = Vector2.zero,
+                    boost_time = 0.0f,
+                    break_time = 0.0f,
+                    timeStamp = NetworkManager.Singleton.LocalTime.Time,
+                    position = transform.position,
+                    networkObjectId = NetworkObjectId
+                };
+
+                clientInputBuffer.Add(inputPayload, bufferIndex);
+
+                SendToServerRpc(inputPayload);
+
+                // otherwise we apply movement twice for the host, once here and once in HandleServerTick
+                if (!IsServer)
+                {
+                    var statePayload = ProcessMovement(inputPayload, networkTimer.MinTimeBetweenTicks);
+                    clientStateBuffer.Add(statePayload, bufferIndex);
+                }
+            }
+            else if (IsOwner)
             {
                 var currentTick = networkTimer.CurrentTick;
                 var bufferIndex = currentTick % k_bufferSize;
@@ -312,7 +343,6 @@ namespace Kart
 
         private void HandleServerEchoPrediction()
         {
-            if (!allowInput) return;
             // handle remote player position and transforms based on estimated server time - interpolationDelay 100 ms
             if (serverEchoPredictionBuffer.Count < 2)
                 return;
@@ -339,7 +369,7 @@ namespace Kart
             if (stateDelta < 0.0001f) stateDelta = 0.0001f; // Prevent divide by zero
 
             var velocity = (toState.position - fromState.position) / stateDelta;
-            var smoothingFactor = 12f;
+            var smoothingFactor = 7f;
             // Position extrapolation
             var pos = positionInPast + velocity * ExtrapolationFactor();
 
@@ -373,9 +403,9 @@ namespace Kart
             if (rttMs < 100f)
                 return networkTimeController.rttEMA * 5f;
             if (rttMs < 150f)
-                return networkTimeController.rttEMA * 2f;
+                return networkTimeController.rttEMA * 4f;
             if (rttMs < 200f)
-                return networkTimeController.rttEMA * 3f;
+                return networkTimeController.rttEMA * 4f;
 
             return networkTimeController.rttEMA;
         }
@@ -434,10 +464,11 @@ namespace Kart
             //             );
 
             positionError = Vector3.Distance(rewindState.position, clientStateBuffer.Get(bufferIndex).position);
-            if (positionError > 55 * networkTimer.MinTimeBetweenTicks * 100 * networkTimeController.rttEMA)
+            if (positionError > 55 * networkTimer.MinTimeBetweenTicks + 500 * networkTimeController.rttEMA)
                 //reconciliationThreshold) //reconciliationThreshold should not  47 * networkTimer.MinTimeBetweenTicks) be enough
             {
                 //Debug.Break();
+                Debug.Log("reconciling due to position error: ");
                 ReconcileState(rewindState);
                 reconciliationTimer.Start();
             }
@@ -598,9 +629,10 @@ namespace Kart
 
         public void StopReceivingInput()
         {
-            if (invulnerablityTimer.IsRunning) return;
+            if (invulnerabilityTimer.IsRunning) return;
             allowInput = false;
             stopInputTimer.Start();
+            invulnerabilityTimer.Start();
         }
 
         public void AllowReceiveInput()
