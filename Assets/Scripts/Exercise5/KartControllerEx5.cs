@@ -18,22 +18,16 @@ namespace Kart
         public const float k_serverTickRate = 60f;
         private const int k_bufferSize = 1024;
 
-        [SerializeField] private GameObject clientCube;
         private readonly float extrapolationLimit = 0.5f; // 500ms
         private readonly float reconciliationCooldownTime = 1f;
 
 
         //ServerEcho
-        private ServerEchoEx4 serverEchoEx4;
-        [SerializeField] private GameObject serverCube;
-        [SerializeField] private GameObject DummyPlayer;
-        private CarControllerEx5 DummyPlayerCarController;
         [SerializeField] private GameObject ServerEchoPrediction;
         private readonly List<StatePayload> serverEchoPredictionBuffer = new();
         private int lastEchoPredictionBufferTick = -1;
 
         [Header("Netcode")] private readonly float reconciliationThreshold = 13.5f;
-        private AIHandlerEx5 aiHandler;
         private CarControllerEx5 carController;
         private CircularBuffer<InputPayload> clientInputBuffer;
         private ClientNetworkTransform clientNetworkTransform;
@@ -73,11 +67,10 @@ namespace Kart
         private bool allowInput = true;
         private CountdownTimer stopInputTimer;
         private readonly int stopReceiveInputTime = 4;
-        private CountdownTimer invunerablityTimer;
+        private CountdownTimer invulnerablityTimer;
 
         private void Awake()
         {
-            DummyPlayerCarController = DummyPlayer.GetComponent<CarControllerEx5>();
             networkTimer = new NetworkTimer(k_serverTickRate);
             clientStateBuffer = new CircularBuffer<StatePayload>(k_bufferSize);
             clientInputBuffer = new CircularBuffer<InputPayload>(k_bufferSize);
@@ -86,7 +79,6 @@ namespace Kart
             interpolationBuffer = new List<StatePayload>();
             inputHandler = GetComponent<PlayerInputHandlerEx5>();
             carController = GetComponent<CarControllerEx5>();
-            aiHandler = GetComponent<AIHandlerEx5>();
             networkTimer = new NetworkTimer(k_serverTickRate);
             reconciliationTimer = new CountdownTimer(reconciliationCooldownTime);
             networkTimeController = GetComponent<NetworkTimeController>();
@@ -96,10 +88,9 @@ namespace Kart
             stopInputTimer = new CountdownTimer(stopReceiveInputTime);
             stopInputTimer.OnTimerStop += () => { AllowReceiveInput(); };
             stopInputTimer.OnTimerStart += () => { PrintTimerStart(); };
-            invunerablityTimer = new CountdownTimer(stopReceiveInputTime);
-            invunerablityTimer.OnTimerStart += () => { PrintTimerStart(); };
+            invulnerablityTimer = new CountdownTimer(stopReceiveInputTime);
+            invulnerablityTimer.OnTimerStart += () => { PrintTimerStart(); };
 
-            serverEchoEx4 = GetComponent<ServerEchoEx4>();
 
             extrapolationTimer.OnTimerStart += () =>
             {
@@ -120,7 +111,7 @@ namespace Kart
             reconciliationTimer.Tick(Time.deltaTime);
             extrapolationTimer.Tick(Time.deltaTime);
             stopInputTimer.Tick(Time.deltaTime);
-            invunerablityTimer.Tick(Time.deltaTime);
+            invulnerablityTimer.Tick(Time.deltaTime);
             //Extrapolate();
 
             // this manages local cars that are in the past
@@ -194,7 +185,6 @@ namespace Kart
                 var statePayload = ProcessMovement(inputPayload, networkTimer.MinTimeBetweenTicks);
 
 
-                serverCube.transform.position = statePayload.position;
                 serverStateBuffer.Add(statePayload, bufferIndex);
             }
 
@@ -314,7 +304,6 @@ namespace Kart
                 {
                     var statePayload = ProcessMovement(inputPayload, networkTimer.MinTimeBetweenTicks);
                     clientStateBuffer.Add(statePayload, bufferIndex);
-                    clientCube.transform.position = statePayload.position;
                 }
 
                 HandleServerReconciliation();
@@ -323,6 +312,7 @@ namespace Kart
 
         private void HandleServerEchoPrediction()
         {
+            if (!allowInput) return;
             // handle remote player position and transforms based on estimated server time - interpolationDelay 100 ms
             if (serverEchoPredictionBuffer.Count < 2)
                 return;
@@ -330,34 +320,28 @@ namespace Kart
             while (serverEchoPredictionBuffer.Count > 2 && targetRenderTimeMs > serverEchoPredictionBuffer[1].timeStamp)
                 serverEchoPredictionBuffer.RemoveAt(0);
 
-            var lerpWeight = Mathf.Clamp(
+            var lerpWeight =
                 Mathf.InverseLerp(
                     (float)serverEchoPredictionBuffer[0].timeStamp, // from timestamp
                     (float)serverEchoPredictionBuffer[1].timeStamp, // to timestamp
                     (float)targetRenderTimeMs // current target time
-                ),
-                0.01f,
-                1f
-            );
+                );
 
             var fromState = serverEchoPredictionBuffer[0];
             var toState = serverEchoPredictionBuffer[1];
-            /* without prediction
-            ServerEchoPrediction.transform.position = Vector3.Lerp(fromState.position, toState.position, lerpWeight);
-            ServerEchoPrediction.transform.rotation =
-                Quaternion.Slerp(fromState.rotation, toState.rotation, lerpWeight);
-            */
+
+            var positionInPast = Vector3.Lerp(fromState.position, toState.position, lerpWeight);
+
+            var quaternionInPast = Quaternion.Slerp(fromState.rotation, toState.rotation, lerpWeight);
 
             // Extrapolation: predict position and rotation based on last two states
             var stateDelta = (float)(toState.timeStamp - fromState.timeStamp);
             if (stateDelta < 0.0001f) stateDelta = 0.0001f; // Prevent divide by zero
 
             var velocity = (toState.position - fromState.position) / stateDelta;
-            var extrapolateDelta = (float)networkTimeController.EstimatedServerTimeNow + networkTimeController.rttEMA -
-                                   (float)fromState.timeStamp;
-            var smoothingFactor = 5f;
+            var smoothingFactor = 12f;
             // Position extrapolation
-            var pos = toState.position + velocity * extrapolateDelta;
+            var pos = positionInPast + velocity * ExtrapolationFactor();
 
 
             //TODO check here if its smooth when the states change
@@ -370,8 +354,8 @@ namespace Kart
             if (axis.sqrMagnitude == 0f) axis = Vector3.up; // fallback if no rotation
 
             var angularSpeed = angle / stateDelta; // degrees per ms
-            var rotation =
-                toState.rotation * Quaternion.AngleAxis(angularSpeed * extrapolateDelta, axis);
+            var rotation = quaternionInPast * Quaternion.AngleAxis(angularSpeed * ExtrapolationFactor(), axis);
+
             // Smooth step toward predicted position
             ServerEchoPrediction.transform.position = Vector3.Lerp(
                 ServerEchoPrediction.transform.position, pos, Time.deltaTime * smoothingFactor
@@ -379,6 +363,23 @@ namespace Kart
             ServerEchoPrediction.transform.rotation = Quaternion.Slerp(ServerEchoPrediction.transform.rotation,
                 rotation, Time.deltaTime * smoothingFactor);
         }
+
+        private float ExtrapolationFactor()
+        {
+            var rttMs = networkTimeController.rttEMA * 1000f;
+
+            if (rttMs < 50f)
+                return networkTimeController.rttEMA * 10f;
+            if (rttMs < 100f)
+                return networkTimeController.rttEMA * 5f;
+            if (rttMs < 150f)
+                return networkTimeController.rttEMA * 2f;
+            if (rttMs < 200f)
+                return networkTimeController.rttEMA * 3f;
+
+            return networkTimeController.rttEMA;
+        }
+
 
         private bool ShouldReconcile()
         {
@@ -388,6 +389,24 @@ namespace Kart
 
             return isNewServerState && isLastStateUndefinedOrDifferent && !reconciliationTimer.IsRunning &&
                    !extrapolationTimer.IsRunning;
+        }
+
+        public static float DistanceSmoothing(Vector3 a, Vector3 b,
+            float maxDistance,
+            float minSmooth,
+            float maxSmooth)
+        {
+            // Distance between positions (cheap enough for this use‑case)
+            var dist = Vector3.Distance(a, b);
+
+            // Normalize distance 0..1, clamped
+            var t = Mathf.Clamp01(dist / maxDistance);
+
+            // Option 1: slightly ease in (quadratic)
+            t = t * t; // small dist -> much smaller t, big dist -> near 1
+
+            // Map to smoothing range
+            return Mathf.Lerp(minSmooth, maxSmooth, t);
         }
 
 
@@ -400,14 +419,6 @@ namespace Kart
             StatePayload rewindState = default;
             bufferIndex = lastServerState.tick % k_bufferSize;
             if (bufferIndex - 1 < 0) return; //Not enough information to reconcile
-
-            //TODO
-
-            //call calculate threshhold based on speed with this but i think with timer.MinTimeBetweenTicks and
-            // if packages get lost or something take that into account
-            // like if last 3 ticks got lost, multiply that by 3 and allow the position to be in a circle around that area
-            //character.Move(Quaternion.LookRotation(transform.forward, transform.up) * (new Vector3(0, 0, m_speed * deltaTime)));
-
 
             // this cancels out teleportation
             rewindState =
@@ -423,7 +434,7 @@ namespace Kart
             //             );
 
             positionError = Vector3.Distance(rewindState.position, clientStateBuffer.Get(bufferIndex).position);
-            if (positionError > 55 * networkTimer.MinTimeBetweenTicks)
+            if (positionError > 55 * networkTimer.MinTimeBetweenTicks * 100 * networkTimeController.rttEMA)
                 //reconciliationThreshold) //reconciliationThreshold should not  47 * networkTimer.MinTimeBetweenTicks) be enough
             {
                 //Debug.Break();
@@ -547,8 +558,7 @@ namespace Kart
                 break_time = inputPayload.break_time
             };
 
-            DummyPlayerCarController.ApplyInputs(inputs, deltaTime);
-            Debug.Log("DummyPlayer position after move: " + DummyPlayer.transform.position);
+
             return new StatePayload
             {
                 tick = inputPayload.tick,
@@ -588,7 +598,7 @@ namespace Kart
 
         public void StopReceivingInput()
         {
-            if (invunerablityTimer.IsRunning) return;
+            if (invulnerablityTimer.IsRunning) return;
             allowInput = false;
             stopInputTimer.Start();
         }

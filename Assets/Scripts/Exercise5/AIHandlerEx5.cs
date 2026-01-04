@@ -145,11 +145,12 @@ namespace Kart
             transform.rotation = rotation;
         }
 
-        public void StopReceivingInput()
+        public bool StopReceivingInput()
         {
-            if (invunerablityTimer.IsRunning) return;
+            if (invunerablityTimer.IsRunning) return false;
             allowInput = false;
             stopInputTimer.Start();
+            return true;
         }
 
         public void AllowReceiveInput()

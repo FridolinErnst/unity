@@ -22,6 +22,7 @@ namespace Kart
             if (other.transform.root == transform.root) return;
 
             //TODO check for invulnerability timer so we dont unnecessarily send data to server shards and clients
+            // but how do we check that here for a remote player?
 
             // shard manages only own AI car
             if (IsOwner)
@@ -76,77 +77,3 @@ namespace Kart
         }
     }
 }
-/*
-
-
-
-         [Rpc(SendTo.Server, Delivery = RpcDelivery.Reliable)]
-private void StopOtherCarFromReceivingInputServerRpc(NetworkObjectReference carRef, RpcParams p = default)
-{
-    var carRefOwnerClientId = ProxyScript.Instance.ErrorClientId;
-    if (carRef.TryGet(out var carNO)) carRefOwnerClientId = carNO.OwnerClientId;
-    if (!ProxyScript.Instance.ClientIdToRole.ContainsKey(carRefOwnerClientId))
-        return;
-    var observgate = carNO.GetComponent<CarObserverGate>();
-    Debug.Log("is client allowed " + observgate.CheckVisibility(carRefOwnerClientId));
-    Debug.Log("NetworkingRole for carRefOwnerClientId: " +
-              ProxyScript.Instance.ClientIdToRole[carRefOwnerClientId]);
-
-    //log all other ids and roles
-    foreach (var kvp in ProxyScript.Instance.ClientIdToRole)
-        Debug.Log("ClientId: " + kvp.Key + " Role: " + kvp.Value);
-    if (ProxyScript.Instance.ClientIdToRole[carRefOwnerClientId] == NetworkingRole.IsShard1 ||
-        ProxyScript.Instance.ClientIdToRole[carRefOwnerClientId] == NetworkingRole.IsShard2)
-    {
-        Debug.Log("carrefownerclientid: " + carRefOwnerClientId + " has role " +
-                  ProxyScript.Instance.ClientIdToRole[carRefOwnerClientId]);
-        Debug.Log(" so we call for a shard");
-        StopReceivingInputShardRpc(RpcTarget.Single(carRefOwnerClientId, RpcTargetUse.Temp));
-    }
-
-    if (ProxyScript.Instance.ClientIdToRole[carRefOwnerClientId] == NetworkingRole.IsClient1 ||
-        ProxyScript.Instance.ClientIdToRole[carRefOwnerClientId] == NetworkingRole.IsClient2)
-    {
-        Debug.Log("carrefownerclientid: " + carRefOwnerClientId + " has role " +
-                  ProxyScript.Instance.ClientIdToRole[carRefOwnerClientId]);
-        Debug.Log(" so we call for a client");
-        StopReceivingInputClientRpc(RpcTarget.Single(carRefOwnerClientId, RpcTargetUse.Temp));
-    }
-}
-[Rpc(SendTo.SpecifiedInParams, Delivery = RpcDelivery.Reliable)]
-private void StopReceivingInputShardRpc(RpcParams rpcParams = default)
-{
-    Debug.Log("StopreceivingInput received");
-
-    var carController = transform.root.GetComponent<AIHandlerEx5>();
-    if (carController != null)
-    {
-        Debug.Log("Kartcontroller nut null andwe stop input");
-
-        carController.StopReceivingInput();
-    }
-}*/
-
-/*
-private void OnTriggerEnter(Collider other)
-{
-    if (Globals.networkingRoleSuperset != NetworkingRole.IsShard) return;
-    var playerNO = other.transform.root.GetComponent<NetworkObject>();
-    if (playerNO == null)
-        return;
-    //check if the other car that is hit is managed by this shard (ai cars && player car)
-    if (OwnerClientId != playerNO.NetworkManager.LocalClientId && Globals.networkingRole !=
-        ProxyScript.Instance.GetCorrespondingShardRole(OwnerClientId)) return;
-
-    Debug.Log("DamageSpike OnTriggerEnter called on object: " + gameObject.name + "for object" +
-              other.gameObject.name + "with owner id: " + OwnerClientId);
-
-    if (other.gameObject.layer != LayerMask.NameToLayer("Spike")) return;
-
-
-    Debug.Log(" other object " + other.gameObject.name + " other owner: " + playerNO.OwnerClientId);
-    Debug.Log("the object with owner id: " + OwnerClientId + "hit the object: " + other.name + " with id " +
-              playerNO.OwnerClientId);
-
-    StopOtherCarFromReceivingInputServerRpc(playerNO);
-}*/
