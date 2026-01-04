@@ -21,6 +21,8 @@ namespace Kart
             // check self hit
             if (other.transform.root == transform.root) return;
 
+            //TODO check for invulnerability timer so we dont unnecessarily send data to server shards and clients
+
             // shard manages only own AI car
             if (IsOwner)
             {
