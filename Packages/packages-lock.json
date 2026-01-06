@@ -1,5 +1,11 @@
 {
   "dependencies": {
+    "com.discord.partnersdk": {
+      "version": "file:C:/Users/Fridolin/Downloads/DiscordSocialSdk-UnityPlugin-1.8.13395/com.discord.partnersdk",
+      "depth": 0,
+      "source": "local",
+      "dependencies": {}
+    },
     "com.unity.burst": {
       "version": "1.8.21",
       "depth": 1,

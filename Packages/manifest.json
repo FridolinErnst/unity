@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "com.discord.partnersdk": "file:C:/Users/Fridolin/Downloads/DiscordSocialSdk-UnityPlugin-1.8.13395/com.discord.partnersdk",
     "com.unity.collab-proxy": "2.7.1",
     "com.unity.feature.development": "1.0.1",
     "com.unity.multiplayer.tools": "1.1.1",
