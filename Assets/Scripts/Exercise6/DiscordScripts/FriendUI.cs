@@ -1,19 +1,26 @@
 using System.Collections;
-using Discord.Sdk;
-using TMPro;
 using UnityEngine;
-using UnityEngine.Networking;
 using UnityEngine.UI;
+using UnityEngine.Networking;
+using TMPro;
+using Discord.Sdk;
 
 public class FriendUI : MonoBehaviour
 {
-    [SerializeField] private TextMeshProUGUI friendNameText;
+    [SerializeField]
+    private TextMeshProUGUI friendNameText;
 
-    [SerializeField] private TextMeshProUGUI friendStatusText;
+    [SerializeField]
+    private TextMeshProUGUI friendStatusText;
 
-    [SerializeField] private Image friendAvatarImage;
+    [SerializeField]
+    private Image friendAvatarImage;
 
-    [SerializeField] private Button inviteButton;
+    [SerializeField]
+    private Button inviteButton;
+
+    [SerializeField]
+    private Button messageButton;
 
     private Client client;
     public RelationshipHandle relationshipHandle { get; private set; }
@@ -24,9 +31,9 @@ public class FriendUI : MonoBehaviour
         this.relationshipHandle = relationshipHandle;
         friendNameText.text = relationshipHandle.User().DisplayName();
         friendStatusText.text = relationshipHandle.User().Status().ToString();
-        StartCoroutine(LoadAvatarFromUrl(relationshipHandle.User()
-            .AvatarUrl(UserHandle.AvatarType.Png, UserHandle.AvatarType.Png)));
+        StartCoroutine(LoadAvatarFromUrl(relationshipHandle.User().AvatarUrl(UserHandle.AvatarType.Png, UserHandle.AvatarType.Png)));
         inviteButton.onClick.AddListener(OnInviteButtonClick);
+        messageButton.onClick.AddListener(OnMessageButtonClick);
     }
 
     public void UpdateFriend()
@@ -37,15 +44,14 @@ public class FriendUI : MonoBehaviour
 
     private IEnumerator LoadAvatarFromUrl(string url)
     {
-        using (var request = UnityWebRequestTexture.GetTexture(url))
+        using (UnityWebRequest request = UnityWebRequestTexture.GetTexture(url))
         {
             yield return request.SendWebRequest();
 
             if (request.result == UnityWebRequest.Result.Success)
             {
-                var texture = DownloadHandlerTexture.GetContent(request);
-                var sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height),
-                    new Vector2(0.5f, 0.5f));
+                Texture2D texture = DownloadHandlerTexture.GetContent(request);
+                Sprite sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f));
                 friendAvatarImage.sprite = sprite;
             }
             else
@@ -59,11 +65,27 @@ public class FriendUI : MonoBehaviour
     {
         if (relationshipHandle != null)
         {
-            var discordManager = FindFirstObjectByType<DiscordManager>();
+            DiscordManager discordManager = FindFirstObjectByType<DiscordManager>();
             if (discordManager != null)
+            {
                 discordManager.SendInvite(relationshipHandle.User().Id());
+            }
             else
+            {
                 Debug.LogError("DiscordManager not found!");
+            }
+        }
+    }
+
+    private void OnMessageButtonClick()
+    {
+        if (relationshipHandle != null)
+        {
+            MessageManager messageManager = FindFirstObjectByType<MessageManager>();
+            if (messageManager != null)
+            {
+                messageManager.OpenMessageUI(relationshipHandle.User().Id());
+            }
         }
     }
 }

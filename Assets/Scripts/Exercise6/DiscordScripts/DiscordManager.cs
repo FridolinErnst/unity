@@ -1,23 +1,36 @@
-using Discord.Sdk;
 using UnityEngine;
+using UnityEngine.UI;
+using Discord.Sdk;
 
 public class DiscordManager : MonoBehaviour
 {
-    [SerializeField] private ulong applicationId;
-    [SerializeField] private RichPresence richPresence;
-    [SerializeField] private FriendsList friendsList;
-    [SerializeField] private LobbyManager lobbyManager;
+    [SerializeField]
+    private ulong applicationId;
+
+    [SerializeField]
+    private RichPresence richPresence;
+
+    [SerializeField]
+    private FriendsList friendsList;
+
+    [SerializeField]
+    private LobbyManager lobbyManager;
+
+    [SerializeField]
+    private MessageManager messageManager;
 
     private Client client;
     private string codeVerifier;
 
-    private void Awake()
+    void Awake()
     {
         client = new Client();
-        client.AddLogCallback(OnLog, LoggingSeverity.Error);
+        client.AddLogCallback(OnLog, LoggingSeverity.Verbose);
         client.SetStatusChangedCallback(OnStatusChanged);
         client.SetUserUpdatedCallback(OnUserUpdated);
+        client.RegisterLaunchCommand(applicationId, string.Empty);
         client.SetActivityInviteCreatedCallback(OnActivityInvite);
+        client.SetMessageCreatedCallback(MessageCreated);
     }
 
     private void OnDestroy()
@@ -34,14 +47,24 @@ public class DiscordManager : MonoBehaviour
     {
         Debug.Log($"Status changed: {status}");
 
-        if (error != Client.Error.None) Debug.LogError($"Error: {error}, code: {errorCode}");
+        if (error != Client.Error.None)
+        {
+            Debug.LogError($"Error: {error}, code: {errorCode}");
+        }
 
         if (status == Client.Status.Ready)
         {
             richPresence.UpdateRichPresence(client);
             friendsList.LoadFriends(client);
             lobbyManager.InitializeLobbyCreation(client);
+            messageManager.InitializeMessageManager(client);
         }
+    }
+
+    private void OnUserUpdated(ulong userId)
+    {
+        friendsList.UpdateFriends();
+        friendsList.SortFriends();
     }
 
     public void StartOAuthFlow()
@@ -63,7 +86,6 @@ public class DiscordManager : MonoBehaviour
             Debug.Log($"Authorization result: [{result.Error()}]");
             return;
         }
-
         GetTokenFromCode(code, redirectUri);
     }
 
@@ -72,27 +94,28 @@ public class DiscordManager : MonoBehaviour
         client.GetToken(applicationId, code, codeVerifier, redirectUri, OnGetToken);
     }
 
-    private void OnGetToken(ClientResult result, string token, string refreshToken, AuthorizationTokenType tokenType,
-        int expiresIn, string scope)
+    private void OnGetToken(ClientResult result, string token, string refreshToken, AuthorizationTokenType tokenType, int expiresIn, string scope)
     {
         if (token == null || token == string.Empty)
+        {
             Debug.Log("Failed to retrieve token");
+        }
         else
+        {
             client.UpdateToken(AuthorizationTokenType.Bearer, token, OnUpdateToken);
+        }
     }
 
     private void OnUpdateToken(ClientResult result)
     {
         if (result.Successful())
+        {
             client.Connect();
+        }
         else
+        {
             Debug.LogError($"Failed to update token: {result.Error()}");
-    }
-
-    private void OnUserUpdated(ulong userId)
-    {
-        friendsList.UpdateFriends();
-        friendsList.SortFriends();
+        }
     }
 
     public void SendInvite(ulong targetUserId)
@@ -100,30 +123,34 @@ public class DiscordManager : MonoBehaviour
         client.SendActivityInvite(targetUserId, "Join my game!", OnSendInvite);
     }
 
-    private void OnSendInvite(ClientResult result)
+    public void OnSendInvite(ClientResult result)
     {
         if (result.Successful())
+        {
             Debug.Log("Successfully sent invite");
+        }
         else
+        {
             Debug.LogError($"Failed to send invite: {result.Error()}");
+        }
     }
-
     private void OnActivityInvite(ActivityInvite invite)
     {
         Debug.Log($"Received invite from user {invite.SenderId()}");
         client.AcceptActivityInvite(invite, OnAcceptInvite);
     }
 
+    private void MessageCreated(ulong messageId)
+    {
+        messageManager.MessageReceived(messageId);
+    }
+
     private void OnAcceptInvite(ClientResult result, string joinSecret)
     {
         if (result.Successful())
         {
-            Debug.Log($"Accepted invite with lobby secret: {joinSecret}");
+            Debug.Log($"Successfully accepted invite with join secret: {joinSecret}");
             lobbyManager.JoinLobby(joinSecret);
-        }
-        else
-        {
-            Debug.LogError($"Failed to accept invite: {result.Error()}");
         }
     }
 }

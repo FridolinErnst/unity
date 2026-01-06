@@ -1,20 +1,22 @@
-using System;
 using System.Collections;
-using Discord.Sdk;
 using UnityEngine;
 using UnityEngine.UI;
+using Discord.Sdk;
 
 public class LobbyManager : MonoBehaviour
 {
-    [SerializeField] private Button createLobbyButton;
-    [SerializeField] private Button leaveLobbyButton;
-    [SerializeField] private int maxLobbySize = 4;
+    [SerializeField]
+    private Button createLobbyButton;
+    [SerializeField]
+    private Button leaveLobbyButton;
+    [SerializeField]
+    private int maxLobbySize = 4;
     private string lobbySecret;
     private ulong currentLobby;
     private RichPresence richPresence;
     private Client client;
 
-    private void Start()
+    void Start()
     {
         richPresence = FindFirstObjectByType<RichPresence>();
 
@@ -35,7 +37,7 @@ public class LobbyManager : MonoBehaviour
     {
         StopAllCoroutines();
         createLobbyButton.gameObject.SetActive(false);
-        lobbySecret = Guid.NewGuid().ToString();
+        lobbySecret = System.Guid.NewGuid().ToString();
         client.CreateOrJoinLobby(lobbySecret, OnCreateOrJoinLobby);
     }
 
@@ -61,9 +63,10 @@ public class LobbyManager : MonoBehaviour
 
             leaveLobbyButton.gameObject.SetActive(true);
 
-            if (richPresence != null)
-                richPresence.UpdateRichPresenceLobby(client, "In Lobby", "Waiting for players", lobbySecret,
-                    lobbyId.ToString(), maxLobbySize);
+            if(richPresence != null)
+            {
+                richPresence.UpdateRichPresenceLobby(client, "In Lobby", "Waiting for players", lobbySecret, lobbyId.ToString(), maxLobbySize);
+            }
 
             Debug.Log($"Successfully created or joined lobby {lobbyId}");
         }
@@ -91,7 +94,10 @@ public class LobbyManager : MonoBehaviour
 
             createLobbyButton.gameObject.SetActive(true);
 
-            if (richPresence != null) richPresence.UpdateRichPresence(client);
+            if(richPresence != null)
+            {
+                richPresence.UpdateRichPresence(client);
+            }
 
             Debug.Log($"Successfully left lobby {currentLobby}");
         }
